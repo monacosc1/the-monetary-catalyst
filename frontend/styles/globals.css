@@ -15,23 +15,11 @@
 
 @layer base {
   body {
-    @apply bg-white text-background;
+    @apply bg-white text-gray-900;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold text-background;
-  }
-
-  h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
-  }
-
-  h2 {
-    @apply text-3xl md:text-4xl lg:text-5xl;
-  }
-
-  h3 {
-    @apply text-2xl md:text-3xl lg:text-4xl;
+    @apply font-bold text-gray-900;
   }
 
   a {
@@ -48,10 +36,6 @@
     @apply bg-primary text-white hover:bg-accent1;
   }
 
-  .btn-secondary {
-    @apply bg-secondary text-background hover:bg-accent2;
-  }
-
   .container {
     @apply mx-auto px-4 sm:px-6 lg:px-8;
   }
@@ -59,27 +43,34 @@
   .section {
     @apply py-12 md:py-16 lg:py-20;
   }
-}
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-content h2,
+  .text-content h3 {
+    @apply text-gray-900;
+  }
+
+  .text-content p {
+    @apply text-gray-700;
+  }
+
+  .hero-content,
+  .cta-content {
+    @apply text-white;
+  }
+
+  .hero-content h1,
+  .hero-content p,
+  .cta-content h2,
+  .cta-content p {
+    @apply text-white;
   }
 }
 
-/* Dark mode styles */
-.dark {
-  color-scheme: dark;
+/* Header styles */
+header {
+  @apply bg-background-light;
 }
 
-.dark body {
-  @apply bg-background text-white;
-}
-
-.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
-  @apply text-white;
-}
-
-.dark a {
-  @apply text-accent2 hover:text-accent1;
+header a {
+  @apply text-white hover:text-white;
 }
