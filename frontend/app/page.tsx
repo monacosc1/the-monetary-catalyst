@@ -4,19 +4,35 @@ import Image from 'next/image'
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section */}
-      <section className="bg-background text-white py-20 px-4">
-        <div className="container mx-auto text-center hero-content">
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">Welcome to The Monetary Catalyst</h1>
-          <p className="text-xl md:text-2xl mb-8">Empowering investors with professional financial research and strategies</p>
-          <Link 
-            href="/subscribe" 
-            className="btn btn-primary"
-          >
-            Get Started
-          </Link>
+      <div className="bg-background-light text-white">
+        {/* Hero Section */}
+        <div className="container mx-auto px-4 py-20 text-center">
+          <div className="inline-block bg-accent2 text-background-light px-3 py-1 rounded-full text-sm font-semibold mb-6">
+            Trusted by thousands of investors
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+            The Premier Platform for<br />Financial Research
+          </h1>
+          <p className="text-xl mb-10 max-w-2xl mx-auto">
+            The Monetary Catalyst is a cutting-edge, comprehensive platform designed to
+            empower investors with professional financial research and winning investment strategies.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Link 
+              href="/explore" 
+              className="bg-primary hover:bg-accent1 text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
+            >
+              Explore Product
+            </Link>
+            <Link 
+              href="/get-started" 
+              className="bg-accent2 hover:bg-accent1 text-background-light hover:text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
+            >
+              Get Started
+            </Link>
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* Main Content */}
       <main className="flex-grow bg-white">
