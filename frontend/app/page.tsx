@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import DotPattern from '@/components/DotPattern'
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="bg-background-light text-white">
-        {/* Hero Section */}
-        <div className="container mx-auto px-4 py-20 text-center">
+    <>
+      {/* Hero Section */}
+      <section className="bg-background-light text-white pt-24 pb-20 px-4 border-b border-gray-700 relative">
+        <DotPattern />
+        <div className="container mx-auto text-center relative z-10">
           <div className="inline-block bg-accent2 text-background-light px-3 py-1 rounded-full text-sm font-semibold mb-6">
             Trusted by thousands of investors
           </div>
@@ -32,7 +34,7 @@ export default function Home() {
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content */}
       <main className="flex-grow bg-white">
@@ -81,8 +83,9 @@ export default function Home() {
           </section>
 
           {/* Call to Action Section */}
-          <section className="bg-background-light text-white py-16 px-4">
-            <div className="container mx-auto text-center cta-content">
+          <section className="bg-background-light text-white py-16 px-4 border-b border-gray-700 relative">
+            <DotPattern />
+            <div className="container mx-auto text-center cta-content relative z-10">
               <h2 className="text-3xl font-bold mb-4">Ready to Elevate Your Investment Strategy?</h2>
               <p className="text-xl mb-8">Join The Monetary Catalyst today and gain access to premium financial insights.</p>
               <Link 
@@ -95,6 +98,6 @@ export default function Home() {
           </section>
         </div>
       </main>
-    </div>
+    </>
   )
 }

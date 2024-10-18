@@ -1,10 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import DotPattern from './DotPattern'
 
 export default function Header() {
   return (
-    <header className="bg-[#001e46] py-4">
-      <div className="container mx-auto px-4 flex justify-between items-center">
+    <header className="sticky top-0 left-0 right-0 z-50 bg-[#001e46] py-4 border-b border-gray-700">
+      <DotPattern />
+      <div className="container mx-auto px-4 flex justify-between items-center z-10">
         <div className="w-1/4">
           <Link href="/" className="flex-shrink-0">
             <Image
