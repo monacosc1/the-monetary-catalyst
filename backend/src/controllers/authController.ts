@@ -10,7 +10,12 @@ import config from '../config/environment';
 // Register User
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, first_name, last_name, termsAccepted } = req.body;
+
+    if (!termsAccepted) {
+      res.status(400).json({ message: 'You must accept the Terms & Conditions to create an account.' });
+      return;
+    }
 
     // Check if user already exists
     const { data: existingUser } = await supabase
@@ -31,7 +36,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     // Create new user
     const { data: newUser, error } = await supabase
       .from('users')
-      .insert({ email, password_hash: hashedPassword, name })
+      .insert({ email, password_hash: hashedPassword, first_name, last_name, terms_accepted: true })
       .select()
       .single();
 
@@ -46,7 +51,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
 
     res.status(201).json({ 
       message: 'User registered successfully',
-      user: { id: newUser.id, email: newUser.email, name: newUser.name },
+      user: { id: newUser.id, email: newUser.email, first_name: newUser.first_name, last_name: newUser.last_name },
       token 
     });
   } catch (error) {
@@ -85,7 +90,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
 
     res.status(200).json({ 
       message: 'User logged in successfully',
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name },
       token 
     });
   } catch (error) {
@@ -108,7 +113,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
     // Fetch user profile from the database
     const { data: userProfile, error } = await supabase
       .from('users')
-      .select('id, email, name, created_at')
+      .select('id, email, first_name, last_name, created_at')
       .eq('id', userId)
       .single();
 
