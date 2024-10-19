@@ -7,9 +7,9 @@ import DotPattern from '@/components/DotPattern'
 export default function PricingPage() {
   const [isAnnual, setIsAnnual] = useState(false)
 
-  const monthlyPrice = 29.95
-  const annualPrice = 22.46
-  const annualTotal = 269.52
+  const monthlyPrice = 29.99
+  const annualPrice = 22.50
+  const annualTotal = 269.99
   const annualSavings = 90.00
 
   const benefits = [
@@ -21,31 +21,32 @@ export default function PricingPage() {
     <main className="flex-grow bg-background-light text-white py-16 relative">
       <DotPattern />
       <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-md mx-auto bg-white text-gray-900 rounded-lg shadow-xl p-8">
-          <h2 className="text-4xl font-extrabold text-center mb-8">Memberships</h2>
+        <div className="max-w-md mx-auto">
+          <h2 className="text-4xl font-extrabold text-center mb-8 text-white">Memberships</h2>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="relative bg-gray-100 rounded-full p-1 shadow-md mb-4">
+            <div className="relative bg-gray-800 rounded-full p-1 shadow-md mb-4">
               <button
-                className={`px-4 py-2 rounded-full ${!isAnnual ? 'bg-primary text-white' : 'text-gray-600'}`}
+                className={`px-4 py-2 rounded-full ${!isAnnual ? 'bg-primary text-white' : 'text-gray-300'}`}
                 onClick={() => setIsAnnual(false)}
               >
                 Monthly
               </button>
               <button
-                className={`px-4 py-2 rounded-full ${isAnnual ? 'bg-primary text-white' : 'text-gray-600'}`}
+                className={`px-4 py-2 rounded-full ${isAnnual ? 'bg-primary text-white' : 'text-gray-300'}`}
                 onClick={() => setIsAnnual(true)}
               >
                 Annual
               </button>
             </div>
-            <div className="text-center text-accent2 flex flex-col items-center">
+            <div className="text-center text-accent2">
               <span>Annually you get 25% off,</span>
+              <br />
               <span>which is 3 months free</span>
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6 mb-8">
+          <div className="bg-white text-gray-900 rounded-lg p-6 mb-8 shadow-xl">
             <h3 className="text-2xl font-bold mb-2">Professional</h3>
             <p className="text-gray-600 mb-6">
               Single-user access to our industry leading analysis
@@ -58,7 +59,7 @@ export default function PricingPage() {
 
             <div className={`transition-all duration-300 overflow-hidden ${isAnnual ? 'max-h-20 opacity-100 mb-6' : 'max-h-0 opacity-0'}`}>
               <div className="text-lg mb-2">${annualTotal.toFixed(2)} Annually</div>
-              <div className="text-accent2">You save ${annualSavings.toFixed(2)} a year</div>
+              <div className="text-accent2-dark font-bold">You save ${annualSavings.toFixed(2)} a year</div>
             </div>
 
             <div className="space-y-4 mb-8">
@@ -76,7 +77,7 @@ export default function PricingPage() {
             </button>
           </div>
 
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-gray-400">
             Membership is automatically renewed.<br />Cancel at any time.
           </div>
         </div>
