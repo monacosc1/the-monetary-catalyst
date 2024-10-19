@@ -27,7 +27,7 @@ export default function Home() {
               Explore Product
             </Link>
             <Link 
-              href="/get-started" 
+              href="/pricing" 
               className="bg-accent2 hover:bg-accent1 text-background-light hover:text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
             >
               Get Started
@@ -89,7 +89,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold mb-4">Ready to Elevate Your Investment Strategy?</h2>
               <p className="text-xl mb-8">Join The Monetary Catalyst today and gain access to premium financial insights.</p>
               <Link 
-                href="/subscribe" 
+                href="/pricing" 
                 className="btn btn-primary"
               >
                 Subscribe Now

@@ -28,7 +28,7 @@ export default function Header() {
         <div className="w-1/4 flex justify-end items-center space-x-6">
           <Link href="/login" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">Login</Link>
           <Link 
-            href="/subscribe" 
+            href="/pricing" 
             className="bg-[#5064fa] hover:bg-[#01baef] text-[#ffffff] px-4 py-2 rounded transition-colors text-lg font-bold"
           >
             Subscribe
