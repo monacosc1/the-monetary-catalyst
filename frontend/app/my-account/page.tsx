@@ -19,7 +19,6 @@ const MyAccountPage = () => {
   const [message, setMessage] = useState('')
   const [isEditingEmail, setIsEditingEmail] = useState(false)
   const [newEmail, setNewEmail] = useState('')
-  const [showResendOption, setShowResendOption] = useState(true)
 
   useEffect(() => {
     if (user) {
@@ -37,9 +36,6 @@ const MyAccountPage = () => {
         setIsEmailConfirmed(currentUser?.email_confirmed_at !== null)
       }
       checkEmailConfirmation()
-      
-      // Always show resend option for testing purposes
-      setShowResendOption(true)
     }
   }, [user])
 
@@ -53,19 +49,6 @@ const MyAccountPage = () => {
       setMessage('General information updated successfully')
     } catch (error: any) {
       setMessage(error.message || 'An error occurred while updating')
-    }
-  }
-
-  const handleResendConfirmation = async () => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-      })
-      if (error) throw error
-      setMessage('Confirmation email sent. Please check your inbox.')
-    } catch (error: any) {
-      setMessage(error.message || 'An error occurred while sending confirmation email')
     }
   }
 
@@ -202,17 +185,7 @@ const MyAccountPage = () => {
                   </div>
                 )}
                 
-                {showResendOption && (
-                  <button
-                    onClick={handleResendConfirmation}
-                    className="text-primary hover:text-accent1 font-semibold"
-                  >
-                    Resend email confirmation email
-                  </button>
-                )}
-                {isEmailConfirmed && (
-                  <p className="text-green-600">Your email has been confirmed.</p>
-                )}
+                <p className="text-green-600">Your email has been confirmed.</p>
               </div>
             )}
 
