@@ -17,10 +17,9 @@ export default function LoginPage() {
     e.preventDefault()
     try {
       await login(email, password)
-      router.push('/pricing')
-    } catch (error) {
-      console.error('Login error:', error)
-      setError('Invalid email or password. Please try again.')
+      router.push('/') // Redirect to home page after successful login
+    } catch (error: any) {
+      setError(error.message || 'An error occurred during login')
     }
   }
 

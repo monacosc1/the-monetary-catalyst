@@ -9,7 +9,7 @@ import ErrorBoundary from '../../components/ErrorBoundary'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { register } = useAuth()
+  const { register, loginAfterRegister } = useAuth()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -35,6 +35,11 @@ export default function RegisterPage() {
     try {
       const { user, session } = await register(email, password, firstName, lastName)
       console.log('Registration successful', user, session)
+      
+      // Immediately log in the user after successful registration
+      await loginAfterRegister(email, password)
+      
+      // Redirect to the pricing page
       router.push('/pricing')
     } catch (error: any) {
       console.error('Registration error:', error)

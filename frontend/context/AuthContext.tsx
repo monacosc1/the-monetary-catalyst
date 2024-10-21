@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<{ user: User | null; session: Session | null }>
   logout: () => Promise<void>
+  loginAfterRegister: (email: string, password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -40,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    // No need to manually set user or isLoggedIn here, as the onAuthStateChange listener will handle it
   }
 
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
@@ -60,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error
       }
       console.log('Registration response:', data)
+      console.log('Email confirmed at:', data.user?.email_confirmed_at)
       return { user: data.user, session: data.session }
     } catch (error) {
       console.error('Registration error:', error)
@@ -68,12 +71,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut()
+    console.log('Logout function called')
+    try {
+      // First, check if there's a session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError)
+        throw sessionError
+      }
+
+      if (!session) {
+        console.log('No active session found, clearing local state')
+        setUser(null)
+        setIsLoggedIn(false)
+        return
+      }
+
+      // If there's a session, proceed with sign out
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Supabase signOut error:', error)
+        throw error
+      }
+      console.log('Supabase signOut successful')
+      setUser(null)
+      setIsLoggedIn(false)
+      console.log('User state cleared')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Even if there's an error, clear the local state
+      setUser(null)
+      setIsLoggedIn(false)
+    }
+  }
+
+  const loginAfterRegister = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    setUser(data.user)
+    setIsLoggedIn(true)
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout, loginAfterRegister }}>
       {children}
     </AuthContext.Provider>
   )
