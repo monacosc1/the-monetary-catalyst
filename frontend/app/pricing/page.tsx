@@ -78,7 +78,7 @@ export default function PricingPage() {
           </div>
 
           <div className="text-center text-sm text-gray-400">
-            Membership is automatically renewed.<br />All sales final. Cancel at any time.<br />Apply for a full time student discount.
+            Membership is automatically renewed.<br />All sales final. Cancel at any time.<br />Apply for a student discount.
           </div>
         </div>
       </div>
