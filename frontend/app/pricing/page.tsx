@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle } from 'lucide-react'
 import DotPattern from '@/components/DotPattern'
+import Link from 'next/link'
+import { useAuth } from '@/context/AuthContext'
 
 export default function PricingPage() {
   const [isAnnual, setIsAnnual] = useState(false)
+  const { isLoggedIn } = useAuth() // Get the login status from AuthContext
 
   const monthlyPrice = 29.99
   const annualPrice = 22.50
@@ -73,7 +76,11 @@ export default function PricingPage() {
             </div>
 
             <button className="w-full bg-primary hover:bg-accent1 text-white font-bold py-3 px-4 rounded transition duration-300">
-              Subscribe
+              {isLoggedIn ? (
+                <Link href="/subscribe">Subscribe</Link>
+              ) : (
+                <Link href="/register">Get Started</Link>
+              )}
             </button>
           </div>
 

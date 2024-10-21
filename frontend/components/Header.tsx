@@ -1,8 +1,24 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import DotPattern from './DotPattern'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Header() {
+  const router = useRouter()
+  const { isLoggedIn, logout } = useAuth()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/')
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
+
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-[#001e46] py-4 border-b border-gray-700">
       <DotPattern />
@@ -15,6 +31,7 @@ export default function Header() {
               width={300}
               height={75}
               className="max-h-16 w-auto"
+              priority
             />
           </Link>
         </div>
@@ -26,13 +43,37 @@ export default function Header() {
           </ul>
         </nav>
         <div className="w-1/4 flex justify-end items-center space-x-6">
-          <Link href="/login" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">Login</Link>
-          <Link 
-            href="/pricing" 
-            className="bg-[#5064fa] hover:bg-[#01baef] text-[#ffffff] px-4 py-2 rounded transition-colors text-lg font-bold"
-          >
-            Subscribe
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href="/my-account" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">
+                My Account
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold"
+              >
+                Logout
+              </button>
+              <Link 
+                href="/pricing" 
+                className="bg-[#5064fa] hover:bg-[#01baef] text-[#ffffff] px-4 py-2 rounded transition-colors text-lg font-bold"
+              >
+                Upgrade
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">
+                Login
+              </Link>
+              <Link 
+                href="/pricing" 
+                className="bg-[#5064fa] hover:bg-[#01baef] text-[#ffffff] px-4 py-2 rounded transition-colors text-lg font-bold"
+              >
+                Subscribe
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

@@ -2,16 +2,26 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
+import { useAuth } from '@/context/AuthContext'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log('Login attempted with:', email, password)
+    try {
+      await login(email, password)
+      router.push('/pricing')
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Invalid email or password. Please try again.')
+    }
   }
 
   return (

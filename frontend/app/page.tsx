@@ -1,8 +1,13 @@
+'use client'
+
 import Link from 'next/link'
 import Image from 'next/image'
 import DotPattern from '@/components/DotPattern'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Home() {
+  const { isLoggedIn } = useAuth()
+
   return (
     <>
       {/* Hero Section */}
@@ -83,19 +88,21 @@ export default function Home() {
           </section>
 
           {/* Call to Action Section */}
-          <section className="bg-background-light text-white py-16 px-4 border-b border-gray-700 relative">
-            <DotPattern />
-            <div className="container mx-auto text-center cta-content relative z-10">
-              <h2 className="text-3xl font-bold mb-4">Ready to Elevate Your Investment Strategy?</h2>
-              <p className="text-xl mb-8">Join The Monetary Catalyst today and gain access to premium financial insights.</p>
-              <Link 
-                href="/pricing" 
-                className="btn btn-primary"
-              >
-                Subscribe Now
-              </Link>
-            </div>
-          </section>
+          {!isLoggedIn && (
+            <section className="bg-background-light text-white py-16 px-4 border-b border-gray-700 relative">
+              <DotPattern />
+              <div className="container mx-auto text-center cta-content relative z-10">
+                <h2 className="text-3xl font-bold mb-4">Not Convinced?</h2>
+                <p className="text-xl mb-8">Create a FREE account to receive our monthly newsletter & sample premium content.</p>
+                <Link 
+                  href="/register" 
+                  className="btn btn-primary"
+                >
+                  Register Now
+                </Link>
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </>
