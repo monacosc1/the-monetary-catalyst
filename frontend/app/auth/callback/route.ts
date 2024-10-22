@@ -15,10 +15,11 @@ export async function GET(request: Request) {
 
     if (userError) {
       console.error('Error fetching user:', userError)
-      // Handle error appropriately
     }
 
     if (user) {
+      console.log('User data retrieved:', user)
+
       // Check if user already exists in custom users table
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
       }
 
       if (!existingUser) {
+        console.log('User not found in custom table, inserting new record')
         // Extract name from user metadata
         const fullName = user.user_metadata.full_name || ''
         const [firstName, ...lastNameParts] = fullName.split(' ')
@@ -57,6 +59,8 @@ export async function GET(request: Request) {
       } else {
         console.log('Existing Google user logged in, no new entry created')
       }
+    } else {
+      console.log('No user data available')
     }
   }
 

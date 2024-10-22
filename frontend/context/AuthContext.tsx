@@ -138,26 +138,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      // Clear any existing sessions
-      await supabase.auth.signOut()
+      console.log('Starting Google Sign-In process');
+      await supabase.auth.signOut();
+      console.log('Existing session cleared');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
         }
-      })
+      });
 
-      if (error) throw error
+      if (error) throw error;
+      if (!data.url) throw new Error('No URL returned from signInWithOAuth');
 
-      // The user will be redirected to Google for authentication,
-      // and then back to our callback route.
-      // We'll handle the user insertion in the callback route.
+      console.log('OAuth URL:', data.url);
+      
+      // Redirect the user to the OAuth provider
+      window.location.href = data.url;
     } catch (error) {
-      console.error('Google Sign-In error:', error)
-      throw error
+      console.error('Google Sign-In error:', error);
+      throw error;
     }
-  }
+  };
 
   return (
     <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout, loginAfterRegister, signInWithGoogle }}>
