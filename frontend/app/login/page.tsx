@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -20,6 +20,15 @@ export default function LoginPage() {
       router.push('/') // Redirect to home page after successful login
     } catch (error: any) {
       setError(error.message || 'An error occurred during login')
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle()
+      // The user will be redirected to Google for authentication
+    } catch (error: any) {
+      setError(error.message || 'An error occurred during Google Sign-In')
     }
   }
 
@@ -35,6 +44,7 @@ export default function LoginPage() {
           
           <button
             type="button"
+            onClick={handleGoogleSignIn}
             className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
           >
             <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

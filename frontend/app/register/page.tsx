@@ -9,7 +9,7 @@ import ErrorBoundary from '../../components/ErrorBoundary'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { register, loginAfterRegister } = useAuth()
+  const { register, loginAfterRegister, signInWithGoogle } = useAuth()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -47,6 +47,15 @@ export default function RegisterPage() {
     }
   }
 
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle()
+      // The user will be redirected to Google for authentication
+    } catch (error: any) {
+      setError(error.message || 'An error occurred during Google Sign-In')
+    }
+  }
+
   return (
     <ErrorBoundary>
       <main className="flex-grow bg-background-light text-white py-16 relative">
@@ -60,6 +69,7 @@ export default function RegisterPage() {
             
             <button
               type="button"
+              onClick={handleGoogleSignIn}
               className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
             >
               <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

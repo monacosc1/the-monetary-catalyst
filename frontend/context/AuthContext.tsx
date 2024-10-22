@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<{ user: User | null; session: Session | null }>
   logout: () => Promise<void>
   loginAfterRegister: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -45,7 +46,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    console.log('Registering user:', email)
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -57,12 +57,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       })
-      if (error) {
-        console.error('Supabase registration error:', error)
-        throw error
+      if (error) throw error
+
+      if (data.user) {
+        // Insert into custom users table
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            role: 'user',
+            terms_accepted: true,
+          })
+        if (insertError) throw insertError
       }
-      console.log('Registration response:', data)
-      console.log('Email confirmed at:', data.user?.email_confirmed_at)
+
       return { user: data.user, session: data.session }
     } catch (error) {
       console.error('Registration error:', error)
@@ -113,8 +123,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoggedIn(true)
   }
 
+  const signInWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    })
+    if (error) throw error
+
+    // After successful sign-in, fetch user details
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError) throw userError
+
+    if (user) {
+      // Extract first and last name from Google data
+      const fullName = user.user_metadata.full_name || ''
+      const [firstName, ...lastNameParts] = fullName.split(' ')
+      const lastName = lastNameParts.join(' ')
+
+      // Check if user already exists in custom users table
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users')
+        .select()
+        .eq('id', user.id)
+        .single()
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 means no rows returned, which is expected for new users
+        throw fetchError
+      }
+
+      if (!existingUser) {
+        // Insert into custom users table
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            first_name: firstName,
+            last_name: lastName,
+            role: 'user',
+            terms_accepted: true,
+          })
+        if (insertError) throw insertError
+      }
+
+      // Update user metadata if first_name or last_name is missing
+      if (!user.user_metadata.first_name || !user.user_metadata.last_name) {
+        const { data, error } = await supabase.auth.updateUser({
+          data: { 
+            first_name: firstName, 
+            last_name: lastName 
+          }
+        })
+        if (error) throw error
+        setUser(data.user)
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout, loginAfterRegister }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout, loginAfterRegister, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
   )
