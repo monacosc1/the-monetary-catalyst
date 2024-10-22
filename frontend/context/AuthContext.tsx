@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/utils/supabase'
+import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   user: User | null
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -135,58 +137,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    })
-    if (error) throw error
+    try {
+      // Clear any existing sessions
+      await supabase.auth.signOut()
 
-    // After successful sign-in, fetch user details
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError) throw userError
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
 
-    if (user) {
-      // Extract first and last name from Google data
-      const fullName = user.user_metadata.full_name || ''
-      const [firstName, ...lastNameParts] = fullName.split(' ')
-      const lastName = lastNameParts.join(' ')
+      if (error) throw error
 
-      // Check if user already exists in custom users table
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
-        .select()
-        .eq('id', user.id)
-        .single()
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        // PGRST116 means no rows returned, which is expected for new users
-        throw fetchError
-      }
-
-      if (!existingUser) {
-        // Insert into custom users table
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: user.id,
-            first_name: firstName,
-            last_name: lastName,
-            role: 'user',
-            terms_accepted: true,
-          })
-        if (insertError) throw insertError
-      }
-
-      // Update user metadata if first_name or last_name is missing
-      if (!user.user_metadata.first_name || !user.user_metadata.last_name) {
-        const { data, error } = await supabase.auth.updateUser({
-          data: { 
-            first_name: firstName, 
-            last_name: lastName 
-          }
-        })
-        if (error) throw error
-        setUser(data.user)
-      }
+      // The user will be redirected to Google for authentication,
+      // and then back to our callback route.
+      // We'll handle the user insertion in the callback route.
+    } catch (error) {
+      console.error('Google Sign-In error:', error)
+      throw error
     }
   }
 

@@ -52,9 +52,7 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle()
-      // After successful authentication, redirect to pricing page
-      console.log('Google Sign-In successful, redirecting to pricing page')
-      router.push('/pricing')
+      // The user will be redirected to Google, then to our callback route
     } catch (error: any) {
       console.error('Google Sign-In error:', error)
       setError(error.message || 'An error occurred during Google Sign-In')
