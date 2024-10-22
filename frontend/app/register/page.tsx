@@ -36,22 +36,27 @@ export default function RegisterPage() {
       const { user, session } = await register(email, password, firstName, lastName)
       console.log('Registration successful', user, session)
       
-      // Immediately log in the user after successful registration
+      console.log('Attempting to log in after registration')
       await loginAfterRegister(email, password)
-      
-      // Redirect to the pricing page
-      router.push('/pricing')
+      console.log('Login after registration successful')
     } catch (error: any) {
-      console.error('Registration error:', error)
+      console.error('Error during registration or login:', error)
       setError(error.message || 'An error occurred during registration. Please try again.')
+    } finally {
+      console.log('Attempting to redirect to pricing page')
+      router.push('/pricing')
+      console.log('Redirect initiated')
     }
   }
 
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle()
-      // The user will be redirected to Google for authentication
+      // After successful authentication, redirect to pricing page
+      console.log('Google Sign-In successful, redirecting to pricing page')
+      router.push('/pricing')
     } catch (error: any) {
+      console.error('Google Sign-In error:', error)
       setError(error.message || 'An error occurred during Google Sign-In')
     }
   }

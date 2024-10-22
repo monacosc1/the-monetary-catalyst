@@ -47,33 +47,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // Register with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             first_name: firstName,
             last_name: lastName,
-          }
-        }
+          },
+        },
       })
-      if (error) throw error
 
-      if (data.user) {
-        // Insert into custom users table
-        const { error: insertError } = await supabase
+      if (authError) throw authError
+
+      // If auth registration is successful, insert into custom users table
+      if (authData.user) {
+        const { error: userError } = await supabase
           .from('users')
           .insert({
-            id: data.user.id,
+            id: authData.user.id,
+            email: email,
             first_name: firstName,
             last_name: lastName,
             role: 'user',
             terms_accepted: true,
           })
-        if (insertError) throw insertError
-      }
 
-      return { user: data.user, session: data.session }
+        if (userError) {
+          console.error('Error inserting into custom users table:', userError)
+          throw userError
+        }
+
+        console.log('User data inserted into custom table')
+
+        return { user: authData.user, session: authData.session }
+      } else {
+        throw new Error('Registration failed')
+      }
     } catch (error) {
       console.error('Registration error:', error)
       throw error
