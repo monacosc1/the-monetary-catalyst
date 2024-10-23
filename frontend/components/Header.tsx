@@ -41,6 +41,11 @@ export default function Header() {
     }
   }, [])
 
+  // Add this function to close the dropdown
+  const closeDropdown = () => {
+    setIsAccountDropdownOpen(false)
+  }
+
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-[#001e46] py-4 border-b border-gray-700">
       <DotPattern />
@@ -76,7 +81,11 @@ export default function Header() {
                 </button>
                 {isAccountDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                    <Link href="/my-account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <Link 
+                      href="/my-account" 
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={closeDropdown}
+                    >
                       General
                     </Link>
                     <button

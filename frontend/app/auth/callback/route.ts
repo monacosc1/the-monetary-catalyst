@@ -20,44 +20,57 @@ export async function GET(request: Request) {
     if (user) {
       console.log('User data retrieved:', user)
 
-      // Check if user already exists in custom users table
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
+      // Check if user profile already exists
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('user_profiles')
         .select()
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching existing user:', fetchError)
+        console.error('Error fetching existing profile:', fetchError)
       }
 
-      if (!existingUser) {
-        console.log('User not found in custom table, inserting new record')
+      if (!existingProfile) {
+        console.log('User profile not found, creating new profile')
         // Extract name from user metadata
         const fullName = user.user_metadata.full_name || ''
         const [firstName, ...lastNameParts] = fullName.split(' ')
         const lastName = lastNameParts.join(' ')
 
-        // Insert into custom users table only if the user doesn't exist
-        const { data: insertedUser, error: insertError } = await supabase
-          .from('users')
+        // Insert into user_profiles table
+        const { data: insertedProfile, error: insertError } = await supabase
+          .from('user_profiles')
           .insert({
-            id: user.id,
+            user_id: user.id,
             email: user.email,
             first_name: firstName || null,
             last_name: lastName || null,
-            role: 'user',  // Default role for Google Auth users
+            role: 'user',
             google_id: user.app_metadata.provider === 'google' ? user.id : null,
           })
-          .single()
 
         if (insertError) {
-          console.error('Error inserting user into custom table:', insertError)
+          console.error('Error inserting user profile:', insertError)
         } else {
-          console.log('New Google user successfully inserted into custom table:', insertedUser)
+          console.log('New user profile created:', insertedProfile)
         }
       } else {
-        console.log('Existing Google user logged in, no new entry created')
+        console.log('Existing user profile found:', existingProfile)
+        // Update the profile if needed
+        const { error: updateError } = await supabase
+          .from('user_profiles')
+          .update({
+            email: user.email,
+            // Update other fields if necessary
+          })
+          .eq('user_id', user.id)
+
+        if (updateError) {
+          console.error('Error updating user profile:', updateError)
+        } else {
+          console.log('User profile updated')
+        }
       }
     } else {
       console.log('No user data available')

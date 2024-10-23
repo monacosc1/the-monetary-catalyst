@@ -63,12 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (authError) throw authError
 
-      // If auth registration is successful, insert into custom users table
+      // If auth registration is successful, insert into user_profiles table
       if (authData.user) {
-        const { error: userError } = await supabase
-          .from('users')
+        const { error: profileError } = await supabase
+          .from('user_profiles')
           .insert({
-            id: authData.user.id,
+            user_id: authData.user.id,
             email: email,
             first_name: firstName,
             last_name: lastName,
@@ -76,12 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             terms_accepted: true,
           })
 
-        if (userError) {
-          console.error('Error inserting into custom users table:', userError)
-          throw userError
+        if (profileError) {
+          console.error('Error inserting into user_profiles table:', profileError)
+          throw profileError
         }
 
-        console.log('User data inserted into custom table')
+        console.log('User profile created')
 
         return { user: authData.user, session: authData.session }
       } else {

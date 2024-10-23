@@ -21,22 +21,56 @@ const MyAccountPage = () => {
   const [newEmail, setNewEmail] = useState('')
 
   useEffect(() => {
-    if (user) {
-      setFirstName(user.user_metadata.first_name || '')
-      setLastName(user.user_metadata.last_name || '')
-      setEmail(user.email || '')
-      
-      // Explicitly check the email confirmation status
-      const checkEmailConfirmation = async () => {
-        const { data: { user: currentUser }, error } = await supabase.auth.getUser()
-        if (error) {
-          console.error('Error fetching user data:', error)
-          return
+    const fetchUserProfile = async () => {
+      if (user) {
+        console.log('Current user:', user);
+
+        try {
+          const { data: profile, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .single()
+
+          if (error) {
+            if (error.code === 'PGRST116') {
+              console.log('Profile not found, creating new profile');
+              const { data: newProfile, error: insertError } = await supabase
+                .from('user_profiles')
+                .upsert({
+                  user_id: user.id,
+                  email: user.email,
+                  first_name: user.user_metadata?.first_name || '',
+                  last_name: user.user_metadata?.last_name || '',
+                  role: 'user',
+                }, { onConflict: 'user_id' })
+                .select()
+                .single()
+
+              if (insertError) {
+                console.error('Error creating user profile:', insertError)
+              } else {
+                console.log('New profile created:', newProfile);
+                setFirstName(newProfile?.first_name || '')
+                setLastName(newProfile?.last_name || '')
+                setEmail(newProfile?.email || user.email || '')
+              }
+            } else {
+              console.error('Error fetching user profile:', error)
+            }
+          } else if (profile) {
+            console.log('Fetched profile:', profile);
+            setFirstName(profile.first_name || '')
+            setLastName(profile.last_name || '')
+            setEmail(user.email || profile.email || '')
+          }
+        } catch (error) {
+          console.error('Unexpected error:', error)
         }
-        setIsEmailConfirmed(currentUser?.email_confirmed_at !== null)
       }
-      checkEmailConfirmation()
     }
+
+    fetchUserProfile()
   }, [user])
 
   const handleUpdateGeneral = async (e: React.FormEvent) => {
@@ -172,11 +206,11 @@ const MyAccountPage = () => {
                   </form>
                 ) : (
                   <div>
-                    <p className="text-lg">Your email address: {email}</p>
+                    <p className="text-lg">Your email address: {email || user?.email || 'No email found'}</p>
                     <button
                       onClick={() => {
                         setIsEditingEmail(true)
-                        setNewEmail(email)
+                        setNewEmail(email || user?.email || '')
                       }}
                       className="text-primary hover:text-accent1 font-semibold"
                     >
