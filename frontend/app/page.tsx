@@ -25,10 +25,10 @@ export default function Home() {
           </p>
           <div className="flex justify-center space-x-4">
             <Link 
-              href="/explore" 
+              href="/research" 
               className="bg-primary hover:bg-accent1 text-white px-8 py-3 rounded-full text-lg font-semibold transition-colors"
             >
-              Explore Product
+              Explore Research
             </Link>
             <Link 
               href="/pricing" 
