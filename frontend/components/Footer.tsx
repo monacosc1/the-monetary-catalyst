@@ -24,7 +24,7 @@ export default function Footer() {
               <ul className="text-sm">
                 <li><Link href="/about" className="text-white hover:text-[#00f0b4] transition-colors">About Us</Link></li>
                 <li><Link href="/research" className="text-white hover:text-[#00f0b4] transition-colors">Research</Link></li>
-                <li><Link href="/subscribe" className="text-white hover:text-[#00f0b4] transition-colors">Subscribe</Link></li>
+                <li><Link href="/pricing" className="text-white hover:text-[#00f0b4] transition-colors">Pricing</Link></li>
                 <li><Link href="/contact" className="text-white hover:text-[#00f0b4] transition-colors">Contact</Link></li>
               </ul>
             </div>
@@ -32,7 +32,7 @@ export default function Footer() {
               <h4 className="text-[#00f0b4] font-bold mb-2">Legal</h4>
               <ul className="text-sm">
                 <li><Link href="/privacy" className="text-white hover:text-[#00f0b4] transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="text-white hover:text-[#00f0b4] transition-colors">Terms of Service</Link></li>
+                <li><Link href="/terms" className="text-white hover:text-[#00f0b4] transition-colors">Terms & Conditions</Link></li>
               </ul>
             </div>
           </div>
