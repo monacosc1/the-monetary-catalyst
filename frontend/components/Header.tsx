@@ -13,7 +13,7 @@ export default function Header() {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [isResearchDropdownOpen, setIsResearchDropdownOpen] = useState(false)
   const accountDropdownRef = useRef<HTMLDivElement>(null)
-  const researchDropdownRef = useRef<HTMLDivElement>(null)
+  const researchDropdownRef = useRef<HTMLLIElement>(null)
 
   const handleLogout = async () => {
     console.log('Logout button clicked')
