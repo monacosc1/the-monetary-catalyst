@@ -9,7 +9,11 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'The Monetary Catalyst',
-  description: 'Professional financial research and investment strategies',
+  description: 'Independent investment research and market analysis',
+  icons: [
+    { rel: 'icon', url: '/favicon.ico' },
+    { rel: 'icon', url: '/favicon3.png', type: 'image/png' }
+  ]
 }
 
 export default function RootLayout({
