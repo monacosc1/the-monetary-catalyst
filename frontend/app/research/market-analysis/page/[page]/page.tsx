@@ -3,9 +3,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { marketAnalysisArticles } from '@/mockData/marketAnalysisArticles';
 
-const MarketAnalysisPage = () => {
+const MarketAnalysisPage = ({ params }: { params: { page: string } }) => {
+  const currentPage = parseInt(params.page, 10);
   const articlesPerPage = 10;
-  const firstPageArticles = marketAnalysisArticles.slice(0, articlesPerPage);
+  const startIndex = (currentPage - 1) * articlesPerPage;
+  const endIndex = startIndex + articlesPerPage;
+  const currentArticles = marketAnalysisArticles.slice(startIndex, endIndex);
 
   return (
     <div className="bg-white text-black min-h-screen">
@@ -17,7 +20,7 @@ const MarketAnalysisPage = () => {
           
           <div className="flex flex-col md:flex-row gap-12">
             <div className="md:w-2/3 space-y-12">
-              {firstPageArticles.map((article) => (
+              {currentArticles.map((article) => (
                 <div key={article.id} className="bg-gray-100 rounded-lg shadow-xl overflow-hidden">
                   <div className="md:flex">
                     <div className="md:flex-shrink-0">
@@ -46,10 +49,10 @@ const MarketAnalysisPage = () => {
 
               {/* Pagination */}
               <div className="flex justify-between items-center mt-8">
-                <span className="text-gray-600">Page 1 of 2</span>
-                <Link href="/research/market-analysis/page/2" className="bg-primary text-white px-4 py-2 rounded hover:bg-accent1">
-                  Next Page →
+                <Link href="/research/market-analysis" className="bg-primary text-white px-4 py-2 rounded hover:bg-accent1">
+                  ← Previous Page
                 </Link>
+                <span className="text-gray-600">Page 2 of 2</span>
               </div>
             </div>
             
@@ -90,3 +93,4 @@ const MarketAnalysisPage = () => {
 };
 
 export default MarketAnalysisPage;
+
