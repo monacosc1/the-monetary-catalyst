@@ -11,7 +11,9 @@ export default function Header() {
   const router = useRouter()
   const { isLoggedIn, logout } = useAuth()
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [isResearchDropdownOpen, setIsResearchDropdownOpen] = useState(false)
+  const accountDropdownRef = useRef<HTMLDivElement>(null)
+  const researchDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     console.log('Logout button clicked')
@@ -30,8 +32,11 @@ export default function Header() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target as Node)) {
         setIsAccountDropdownOpen(false)
+      }
+      if (researchDropdownRef.current && !researchDropdownRef.current.contains(event.target as Node)) {
+        setIsResearchDropdownOpen(false)
       }
     }
 
@@ -65,14 +70,44 @@ export default function Header() {
         <nav className="w-1/2 flex justify-center">
           <ul className="flex space-x-12">
             <li><Link href="/about" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">About</Link></li>
-            <li><Link href="/research" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">Research</Link></li>
+            <li className="relative" ref={researchDropdownRef}>
+              <div className="flex items-center">
+                <Link href="/research" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold mr-1">Research</Link>
+                <button
+                  onClick={() => setIsResearchDropdownOpen(!isResearchDropdownOpen)}
+                  className="text-[#ffffff] hover:text-[#ffffff] transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {isResearchDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                  <Link 
+                    href="/research/market-analysis" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsResearchDropdownOpen(false)}
+                  >
+                    Market Analysis
+                  </Link>
+                  <Link 
+                    href="/research/investment-ideas" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setIsResearchDropdownOpen(false)}
+                  >
+                    Investment Ideas
+                  </Link>
+                </div>
+              )}
+            </li>
             <li><Link href="/contact" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">Contact</Link></li>
           </ul>
         </nav>
         <div className="w-1/4 flex justify-end items-center space-x-6">
           {isLoggedIn ? (
             <>
-              <div className="relative" ref={dropdownRef}>
+              <div className="relative" ref={accountDropdownRef}>
                 <button
                   onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
                   className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold"
