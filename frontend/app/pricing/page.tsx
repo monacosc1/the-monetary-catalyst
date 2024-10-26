@@ -77,7 +77,7 @@ export default function PricingPage() {
 
             <button className="w-full bg-primary hover:bg-accent1 text-white font-bold py-3 px-4 rounded transition duration-300">
               {isLoggedIn ? (
-                <Link href="/subscribe">Subscribe</Link>
+                <Link href="/checkout">Subscribe</Link>
               ) : (
                 <Link href="/register">Get Started</Link>
               )}
