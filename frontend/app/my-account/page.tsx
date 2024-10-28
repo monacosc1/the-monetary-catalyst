@@ -6,6 +6,7 @@ import { supabase } from '@/utils/supabase'
 import DotPattern from '@/components/DotPattern'
 import { withAuth } from '@/utils/withAuth'
 import SubscriptionDetails from '@/components/SubscriptionDetails'
+import PaymentDetails from '@/components/PaymentDetails'
 
 const MyAccountPage = () => {
   const { user } = useAuth()
@@ -138,16 +139,22 @@ const MyAccountPage = () => {
               Security
             </button>
             <button
-              onClick={() => setActiveTab('preferences')}
-              className={`py-2 px-4 ${activeTab === 'preferences' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+              onClick={() => setActiveTab('email')}
+              className={`py-2 px-4 ${activeTab === 'email' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
             >
-              Preferences
+              Email
             </button>
             <button
               onClick={() => setActiveTab('subscription')}
               className={`py-2 px-4 ${activeTab === 'subscription' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
             >
               Subscription Details
+            </button>
+            <button
+              onClick={() => setActiveTab('payment')}
+              className={`py-2 px-4 ${activeTab === 'payment' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+            >
+              Payment Details
             </button>
           </div>
 
@@ -225,9 +232,9 @@ const MyAccountPage = () => {
             </div>
           )}
 
-          {activeTab === 'preferences' && (
+          {activeTab === 'email' && (
             <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">Preferences</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">Email</h3>
               
               <div className="space-y-4">
                 <div className="mb-6">
@@ -261,6 +268,10 @@ const MyAccountPage = () => {
 
           {activeTab === 'subscription' && user && (
             <SubscriptionDetails userId={user.id} />
+          )}
+
+          {activeTab === 'payment' && user && (
+            <PaymentDetails userId={user.id} />
           )}
         </div>
       </div>
