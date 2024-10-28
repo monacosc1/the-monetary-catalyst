@@ -11,12 +11,12 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
-// Regular middleware for most routes
+// Configure Express to handle raw body for webhooks
+app.use('/api/webhook', express.raw({ type: 'application/json' }));
+
+// Regular middleware for other routes
 app.use(cors());
 app.use(express.json());
-
-// Special handling for Stripe webhook endpoint
-app.use('/api/webhook', express.raw({ type: 'application/json' }));
 
 // Routes
 app.use('/api', paymentRoutes);

@@ -7,10 +7,10 @@ const router = express.Router();
 // Protected route - requires authentication
 router.post('/create-checkout-session', authMiddleware, createCheckoutSession);
 
-// Webhook endpoint - no auth required
-router.post('/webhook', express.raw({ type: 'application/json' }), handleWebhook);
+// Webhook endpoint - no auth required, no body parsing
+router.post('/webhook', handleWebhook);
 
-// Add this new route to your existing routes
+// Session verification endpoint
 router.get('/verify-session', authMiddleware, verifySession);
 
 export default router;

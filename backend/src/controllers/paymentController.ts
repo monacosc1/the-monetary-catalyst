@@ -75,11 +75,14 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
   const sig = req.headers['stripe-signature']!;
 
   try {
+    console.log('Received webhook request');
     const event = stripe.webhooks.constructEvent(
       req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
+
+    console.log('Webhook event type:', event.type);
 
     // Log webhook event
     await supabase
@@ -92,8 +95,10 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
     switch (event.type) {
       case 'checkout.session.completed': {
+        console.log('Processing checkout.session.completed');
         const session = event.data.object as Stripe.Checkout.Session;
         await handleCheckoutSessionCompleted(session);
+        console.log('Checkout session completed processing');
         break;
       }
       case 'invoice.payment_succeeded': {
@@ -110,30 +115,54 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
     res.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('Webhook error details:', error);
     res.status(400).json({ error: 'Webhook error' });
   }
 };
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  console.log('Starting handleCheckoutSessionCompleted');
   const userId = session.metadata?.userId;
-  if (!userId) return;
+  console.log('User ID from metadata:', userId);
+  
+  if (!userId) {
+    console.log('No userId in metadata, aborting');
+    return;
+  }
 
   const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+  console.log('Retrieved subscription:', {
+    id: subscription.id,
+    status: subscription.status,
+    customerId: subscription.customer,
+    currentPeriodEnd: subscription.current_period_end
+  });
   
-  // Create subscription record
-  await supabase
-    .from('subscriptions')
-    .insert({
-      user_id: userId,
-      stripe_subscription_id: subscription.id,
-      plan_type: subscription.items.data[0].price.recurring?.interval,
-      status: 'active',
-      payment_status: 'active',
-      start_date: new Date(subscription.current_period_start * 1000),
-      end_date: new Date(subscription.current_period_end * 1000),
-      subscription_type: 'professional'
-    });
+  try {
+    // Create subscription record
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: userId,
+        stripe_subscription_id: subscription.id,
+        plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+        status: 'active',
+        payment_status: 'active',
+        start_date: new Date(subscription.current_period_start * 1000),
+        end_date: new Date(subscription.current_period_end * 1000),
+        subscription_type: 'professional'
+      })
+      .select()
+      .single();
+
+    console.log('Supabase subscription insert result:', { data, error });
+
+    if (error) {
+      console.error('Error inserting subscription:', error);
+    }
+  } catch (error) {
+    console.error('Error in handleCheckoutSessionCompleted:', error);
+  }
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
@@ -181,21 +210,49 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 export const verifySession = async (req: Request, res: Response): Promise<void> => {
   try {
     const { session_id } = req.query;
+    console.log('Verifying session:', session_id);
 
     if (!session_id || typeof session_id !== 'string') {
+      console.log('Invalid session ID:', session_id);
       res.status(400).json({ success: false, error: 'Invalid session ID' });
       return;
     }
 
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    console.log('Retrieved session:', {
+      id: session.id,
+      status: session.status,
+      paymentStatus: session.payment_status,
+      customerId: session.customer,
+      subscriptionId: session.subscription
+    });
     
+    // Check Supabase tables
+    const { data: subscription, error: subError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('stripe_subscription_id', session.subscription)
+      .single();
+    
+    console.log('Supabase subscription check:', { subscription, error: subError });
+
     if (session.payment_status === 'paid' && session.status === 'complete') {
-      res.json({ success: true });
+      res.json({ 
+        success: true,
+        status: session.status,
+        paymentStatus: session.payment_status,
+        subscription: subscription
+      });
     } else {
-      res.json({ success: false, message: 'Payment incomplete' });
+      res.json({ 
+        success: false, 
+        message: 'Payment incomplete',
+        status: session.status,
+        paymentStatus: session.payment_status
+      });
     }
   } catch (error) {
-    console.error('Session verification error:', error);
+    console.error('Session verification error details:', error);
     res.status(500).json({ success: false, error: 'Failed to verify session' });
   }
 };

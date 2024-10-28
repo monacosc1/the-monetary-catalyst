@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
+import { supabase } from '@/utils/supabase'
 
 export default function SuccessPage() {
   const [message, setMessage] = useState('Processing your subscription...')
@@ -12,17 +13,25 @@ export default function SuccessPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const sessionId = searchParams.get('session_id')
-    
-    if (!sessionId) {
-      router.push('/pricing')
-      return
-    }
-
     const verifySession = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/verify-session?session_id=${sessionId}`)
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) {
+          setError('Authentication error. Please try logging in again.')
+          return
+        }
+
+        const sessionId = searchParams.get('session_id')
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/verify-session?session_id=${sessionId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          }
+        )
         const data = await response.json()
         
         if (data.success) {
@@ -39,7 +48,11 @@ export default function SuccessPage() {
       }
     }
 
-    verifySession()
+    if (searchParams.get('session_id')) {
+      verifySession()
+    } else {
+      router.push('/pricing')
+    }
   }, [searchParams, router])
 
   return (
