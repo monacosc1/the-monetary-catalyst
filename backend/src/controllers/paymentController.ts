@@ -274,8 +274,29 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
-    // Update existing subscription
-    await supabase
+    // Create payment record
+    const { data: paymentData, error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        subscription_id: supabaseSubscription.id,
+        amount: invoice.amount_paid / 100,
+        date: new Date(),
+        status: 'successful',
+        stripe_payment_id: invoice.payment_intent as string,
+        stripe_invoice_id: invoice.id,
+        stripe_payment_status: 'succeeded'
+      })
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('Error creating payment record:', paymentError);
+      return;
+    }
+
+    // Only update fields not handled by the trigger
+    const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
         payment_status: 'active',
@@ -283,19 +304,16 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       })
       .eq('stripe_subscription_id', subscription.id);
 
-    // Create payment record with correct Supabase subscription ID
-    await supabase
-      .from('payments')
-      .insert({
-        user_id: userId,
-        subscription_id: supabaseSubscription.id,  // Fixed: Using Supabase subscription ID
-        amount: invoice.amount_paid / 100,
-        date: new Date(),
-        status: 'successful',
-        stripe_payment_id: invoice.payment_intent as string,
-        stripe_invoice_id: invoice.id,
-        stripe_payment_status: 'succeeded'
-      });
+    if (updateError) {
+      console.error('Error updating subscription:', updateError);
+    }
+
+    console.log('Successfully processed recurring payment:', {
+      paymentId: paymentData.id,
+      subscriptionId: supabaseSubscription.id,
+      newEndDate: new Date(subscription.current_period_end * 1000)
+    });
+
   } catch (error) {
     console.error('Error in handleInvoicePaymentSucceeded:', error);
   }
