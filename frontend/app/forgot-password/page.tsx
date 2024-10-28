@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
 
       if (error) throw error
 
-      setMessage('Please check your email for password reset instructions.')
+      setMessage('Please check your email for password reset instructions. The link will expire in 30 minutes.')
     } catch (error: any) {
       setError(error.message || 'An error occurred. Please try again.')
     }
