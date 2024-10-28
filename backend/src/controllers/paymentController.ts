@@ -123,76 +123,182 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   console.log('Starting handleCheckoutSessionCompleted');
   const userId = session.metadata?.userId;
-  console.log('User ID from metadata:', userId);
+  console.log('Session details:', {
+    id: session.id,
+    payment_intent: session.payment_intent,
+    subscription: session.subscription,
+    customer: session.customer
+  });
   
   if (!userId) {
     console.log('No userId in metadata, aborting');
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-  console.log('Retrieved subscription:', {
-    id: subscription.id,
-    status: subscription.status,
-    customerId: subscription.customer,
-    currentPeriodEnd: subscription.current_period_end
-  });
-  
   try {
-    // Create subscription record
-    const { data, error } = await supabase
+    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+    console.log('Retrieved subscription:', subscription);
+
+    // Get the latest invoice for this subscription
+    const invoice = await stripe.invoices.retrieve(subscription.latest_invoice as string);
+    console.log('Retrieved invoice:', {
+      id: invoice.id,
+      payment_intent: invoice.payment_intent,
+      amount_paid: invoice.amount_paid
+    });
+
+    // Check for existing active subscription
+    const { data: existingSubscription } = await supabase
       .from('subscriptions')
-      .insert({
-        user_id: userId,
-        stripe_subscription_id: subscription.id,
-        plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
-        status: 'active',
-        payment_status: 'active',
-        start_date: new Date(subscription.current_period_start * 1000),
-        end_date: new Date(subscription.current_period_end * 1000),
-        subscription_type: 'professional'
-      })
-      .select()
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
       .single();
 
-    console.log('Supabase subscription insert result:', { data, error });
+    let subscriptionData;
 
-    if (error) {
-      console.error('Error inserting subscription:', error);
+    if (existingSubscription) {
+      // Update existing if same plan type
+      if (existingSubscription.plan_type === (subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly')) {
+        const { data, error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            end_date: new Date(subscription.current_period_end * 1000),
+            payment_status: 'active'
+          })
+          .eq('id', existingSubscription.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating subscription:', updateError);
+          return;
+        }
+        subscriptionData = data;
+      } else {
+        // If plan type changed, mark old as expired and create new
+        await supabase
+          .from('subscriptions')
+          .update({
+            status: 'expired',
+            payment_status: 'cancelled',
+            end_date: new Date()
+          })
+          .eq('id', existingSubscription.id);
+
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: userId,
+            stripe_subscription_id: subscription.id,
+            plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+            status: 'active',
+            payment_status: 'active',
+            start_date: new Date(subscription.current_period_start * 1000),
+            end_date: new Date(subscription.current_period_end * 1000),
+            subscription_type: 'professional'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating new subscription:', error);
+          return;
+        }
+        subscriptionData = data;
+      }
+    } else {
+      // No active subscription exists, create new one
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          stripe_subscription_id: subscription.id,
+          plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+          status: 'active',
+          payment_status: 'active',
+          start_date: new Date(subscription.current_period_start * 1000),
+          end_date: new Date(subscription.current_period_end * 1000),
+          subscription_type: 'professional'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating subscription:', error);
+        return;
+      }
+      subscriptionData = data;
+    }
+
+    // Create payment record using invoice data instead of payment intent
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        subscription_id: subscriptionData.id,
+        amount: invoice.amount_paid / 100,
+        date: new Date(),
+        status: 'successful',
+        stripe_payment_id: invoice.payment_intent as string,
+        stripe_invoice_id: invoice.id,
+        stripe_payment_status: 'succeeded'
+      });
+
+    if (paymentError) {
+      console.error('Error creating payment record:', paymentError);
     }
   } catch (error) {
     console.error('Error in handleCheckoutSessionCompleted:', error);
+    // Log the full error object for debugging
+    console.error('Full error:', JSON.stringify(error, null, 2));
   }
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return;
 
-  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-  const userId = subscription.metadata.userId;
+  try {
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    const userId = subscription.metadata.userId;
 
-  // Create payment record
-  await supabase
-    .from('payments')
-    .insert({
-      user_id: userId,
-      subscription_id: subscription.id,
-      amount: invoice.amount_paid,
-      date: new Date(),
-      status: 'successful',
-      stripe_payment_id: invoice.payment_intent as string,
-      stripe_invoice_id: invoice.id,
-      stripe_payment_status: 'succeeded'
-    });
+    // Get the Supabase subscription ID
+    const { data: supabaseSubscription } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('stripe_subscription_id', subscription.id)
+      .single();
 
-  // Update subscription
-  await supabase
-    .from('subscriptions')
-    .update({
-      payment_status: 'active',
-      end_date: new Date(subscription.current_period_end * 1000)
-    })
-    .eq('stripe_subscription_id', subscription.id);
+    if (!supabaseSubscription) {
+      console.error('No matching Supabase subscription found');
+      return;
+    }
+
+    // Update existing subscription
+    await supabase
+      .from('subscriptions')
+      .update({
+        payment_status: 'active',
+        end_date: new Date(subscription.current_period_end * 1000)
+      })
+      .eq('stripe_subscription_id', subscription.id);
+
+    // Create payment record with correct Supabase subscription ID
+    await supabase
+      .from('payments')
+      .insert({
+        user_id: userId,
+        subscription_id: supabaseSubscription.id,  // Fixed: Using Supabase subscription ID
+        amount: invoice.amount_paid / 100,
+        date: new Date(),
+        status: 'successful',
+        stripe_payment_id: invoice.payment_intent as string,
+        stripe_invoice_id: invoice.id,
+        stripe_payment_status: 'succeeded'
+      });
+  } catch (error) {
+    console.error('Error in handleInvoicePaymentSucceeded:', error);
+  }
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
