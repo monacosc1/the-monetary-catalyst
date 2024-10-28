@@ -1,5 +1,5 @@
 import express from 'express';
-import { createCheckoutSession, handleWebhook, verifySession } from '../controllers/paymentController';
+import { createCheckoutSession, handleWebhook, verifySession, getPaymentMethod, createSetupIntent, cancelSubscription } from '../controllers/paymentController';
 import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -12,5 +12,10 @@ router.post('/webhook', handleWebhook);
 
 // Session verification endpoint
 router.get('/verify-session', authMiddleware, verifySession);
+
+// Add these new routes
+router.get('/get-payment-method', authMiddleware, getPaymentMethod);
+router.post('/create-setup-intent', authMiddleware, createSetupIntent);
+router.post('/cancel-subscription', authMiddleware, cancelSubscription);
 
 export default router;

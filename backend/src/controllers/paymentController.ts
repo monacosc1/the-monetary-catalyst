@@ -48,7 +48,7 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
         .eq('user_id', userId);
     }
 
-    // Create checkout session
+    // Create checkout session with payment method collection
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [{
@@ -56,6 +56,8 @@ export const createCheckoutSession = async (req: Request, res: Response): Promis
         quantity: 1,
       }],
       mode: 'subscription',
+      payment_method_types: ['card'],
+      payment_method_collection: 'always',
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
       metadata: {
@@ -111,6 +113,11 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
         await handleInvoicePaymentFailed(invoice);
         break;
       }
+      case 'setup_intent.succeeded': {
+        const setupIntent = event.data.object as Stripe.SetupIntent;
+        await handleSetupIntentSucceeded(setupIntent);
+        break;
+      }
     }
 
     res.json({ received: true });
@@ -123,12 +130,6 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   console.log('Starting handleCheckoutSessionCompleted');
   const userId = session.metadata?.userId;
-  console.log('Session details:', {
-    id: session.id,
-    payment_intent: session.payment_intent,
-    subscription: session.subscription,
-    customer: session.customer
-  });
   
   if (!userId) {
     console.log('No userId in metadata, aborting');
@@ -138,6 +139,33 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   try {
     const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
     console.log('Retrieved subscription:', subscription);
+
+    // Get the payment method ID from the session
+    let paymentMethodId: string | null = null;
+
+    if (typeof session.setup_intent === 'string') {
+      const setupIntent = await stripe.setupIntents.retrieve(session.setup_intent);
+      paymentMethodId = setupIntent.payment_method as string;
+    } else if (typeof session.payment_intent === 'string') {
+      const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+      paymentMethodId = paymentIntent.payment_method as string;
+    }
+
+    // If we have a payment method, set it as default
+    if (paymentMethodId) {
+      await stripe.customers.update(session.customer as string, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId
+        }
+      });
+
+      // Also attach it to the subscription
+      await stripe.subscriptions.update(subscription.id, {
+        default_payment_method: paymentMethodId
+      });
+
+      console.log('Set default payment method:', paymentMethodId);
+    }
 
     // Get the latest invoice for this subscription
     const invoice = await stripe.invoices.retrieve(subscription.latest_invoice as string);
@@ -331,6 +359,42 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
     .eq('stripe_subscription_id', invoice.subscription);
 }
 
+async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
+  try {
+    if (!setupIntent.payment_method || !setupIntent.customer) {
+      console.error('Missing payment method or customer');
+      return;
+    }
+
+    // Set as default payment method for the customer
+    await stripe.customers.update(setupIntent.customer as string, {
+      invoice_settings: {
+        default_payment_method: setupIntent.payment_method as string
+      }
+    });
+
+    // Get all active subscriptions for this customer
+    const subscriptions = await stripe.subscriptions.list({
+      customer: setupIntent.customer as string,
+      status: 'active'
+    });
+
+    // Update default payment method for all active subscriptions
+    for (const subscription of subscriptions.data) {
+      await stripe.subscriptions.update(subscription.id, {
+        default_payment_method: setupIntent.payment_method as string
+      });
+    }
+
+    console.log('Updated default payment method for customer and subscriptions:', {
+      customerId: setupIntent.customer,
+      paymentMethodId: setupIntent.payment_method
+    });
+  } catch (error) {
+    console.error('Error handling setup intent succeeded:', error);
+  }
+}
+
 export const verifySession = async (req: Request, res: Response): Promise<void> => {
   try {
     const { session_id } = req.query;
@@ -380,3 +444,133 @@ export const verifySession = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, error: 'Failed to verify session' });
   }
 };
+
+export const getPaymentMethod = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get user's Stripe customer ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('stripe_customer_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (!userProfile?.stripe_customer_id) {
+      res.status(404).json({ error: 'No payment method found' });
+      return;
+    }
+
+    // Get customer's payment methods from Stripe
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: userProfile.stripe_customer_id,
+      type: 'card'
+    });
+
+    const defaultPaymentMethod = paymentMethods.data[0];
+    if (!defaultPaymentMethod) {
+      res.json({ card: null });
+      return;
+    }
+
+    res.json({
+      card: {
+        last4: defaultPaymentMethod.card?.last4,
+        brand: defaultPaymentMethod.card?.brand,
+        exp_month: defaultPaymentMethod.card?.exp_month,
+        exp_year: defaultPaymentMethod.card?.exp_year
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching payment method:', error);
+    res.status(500).json({ error: 'Failed to fetch payment method' });
+  }
+};
+
+export const createSetupIntent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get user's Stripe customer ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('stripe_customer_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (!userProfile?.stripe_customer_id) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Create a SetupIntent
+    const setupIntent = await stripe.setupIntents.create({
+      customer: userProfile.stripe_customer_id,
+      payment_method_types: ['card'],
+      // Add metadata to identify the customer
+      metadata: {
+        userId: userId
+      }
+    });
+
+    // Add a webhook handler for setup_intent.succeeded
+    if (!setupIntent.client_secret) {
+      throw new Error('Failed to create setup intent');
+    }
+
+    res.json({ clientSecret: setupIntent.client_secret });
+  } catch (error) {
+    console.error('Error creating setup intent:', error);
+    res.status(500).json({ error: 'Failed to create setup intent' });
+  }
+};
+
+export const cancelSubscription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get active subscription
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single();
+
+    if (!subscription) {
+      res.status(404).json({ error: 'No active subscription found' });
+      return;
+    }
+
+    // Cancel in Stripe at period end
+    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+      cancel_at_period_end: true
+    });
+
+    // Update subscription in database
+    await supabase
+      .from('subscriptions')
+      .update({
+        cancelled_at: new Date().toISOString()
+      })
+      .eq('id', subscription.id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error cancelling subscription:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+};
+
