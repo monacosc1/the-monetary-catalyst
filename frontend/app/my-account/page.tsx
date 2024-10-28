@@ -5,10 +5,11 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/utils/supabase'
 import DotPattern from '@/components/DotPattern'
 import { withAuth } from '@/utils/withAuth'
+import SubscriptionDetails from '@/components/SubscriptionDetails'
 
 const MyAccountPage = () => {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState('general')
+  const [activeTab, setActiveTab] = useState('profile')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -118,42 +119,43 @@ const MyAccountPage = () => {
   }
 
   return (
-    <main className="flex-grow bg-background-light text-white py-16 relative min-h-screen">
-      <DotPattern />
-      <div className="container mx-auto px-4 relative z-10">
+    <main className="flex-grow bg-background-light py-16">
+      <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto bg-white text-gray-900 rounded-lg shadow-xl p-8">
           <h2 className="text-3xl font-bold text-center mb-6">My Account</h2>
           
-          <div className="flex mb-6">
+          <div className="flex border-b border-gray-200 mb-8">
             <button
-              className={`flex-1 py-2 px-4 ${activeTab === 'general' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'} rounded-tl-lg rounded-tr-lg`}
-              onClick={() => setActiveTab('general')}
+              onClick={() => setActiveTab('profile')}
+              className={`py-2 px-4 ${activeTab === 'profile' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
             >
-              General
+              Profile
             </button>
             <button
-              className={`flex-1 py-2 px-4 ${activeTab === 'email' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}`}
-              onClick={() => setActiveTab('email')}
+              onClick={() => setActiveTab('security')}
+              className={`py-2 px-4 ${activeTab === 'security' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
             >
-              Email
+              Security
             </button>
             <button
-              className={`flex-1 py-2 px-4 ${activeTab === 'password' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'} rounded-tr-lg rounded-tl-lg`}
-              onClick={() => setActiveTab('password')}
+              onClick={() => setActiveTab('preferences')}
+              className={`py-2 px-4 ${activeTab === 'preferences' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
             >
-              Password
+              Preferences
+            </button>
+            <button
+              onClick={() => setActiveTab('subscription')}
+              className={`py-2 px-4 ${activeTab === 'subscription' ? 'border-b-2 border-primary text-primary' : 'text-gray-500'}`}
+            >
+              Subscription Details
             </button>
           </div>
 
-          {message && (
-            <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
-              {message}
-            </div>
-          )}
-
-          <div className="bg-white p-6 rounded-lg shadow">
-            {activeTab === 'general' && (
-              <form onSubmit={handleUpdateGeneral} className="space-y-4">
+          {activeTab === 'profile' && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">Profile</h3>
+              
+              <div className="space-y-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
                   <input
@@ -177,54 +179,15 @@ const MyAccountPage = () => {
                 <button type="submit" className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
                   Update
                 </button>
-              </form>
-            )}
-
-            {activeTab === 'email' && (
-              <div className="space-y-4">
-                {isEditingEmail ? (
-                  <form onSubmit={handleUpdateEmail} className="space-y-4">
-                    <div>
-                      <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700">New Email Address</label>
-                      <input
-                        type="email"
-                        id="newEmail"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
-                        required
-                      />
-                    </div>
-                    <div className="flex space-x-4">
-                      <button type="submit" className="bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
-                        Update Email
-                      </button>
-                      <button type="button" onClick={() => setIsEditingEmail(false)} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-300">
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div>
-                    <p className="text-lg">Your email address: {email || user?.email || 'No email found'}</p>
-                    <button
-                      onClick={() => {
-                        setIsEditingEmail(true)
-                        setNewEmail(email || user?.email || '')
-                      }}
-                      className="text-primary hover:text-accent1 font-semibold"
-                    >
-                      Edit email
-                    </button>
-                  </div>
-                )}
-                
-                <p className="text-green-600">Your email has been confirmed.</p>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeTab === 'password' && (
-              <form onSubmit={handleUpdatePassword} className="space-y-4">
+          {activeTab === 'security' && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">Security</h3>
+              
+              <div className="space-y-4">
                 <div>
                   <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">Current Password</label>
                   <input
@@ -258,9 +221,47 @@ const MyAccountPage = () => {
                 <button type="submit" className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
                   Update Password
                 </button>
-              </form>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'preferences' && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">Preferences</h3>
+              
+              <div className="space-y-4">
+                <div className="mb-6">
+                  <p className="text-gray-700">
+                    Your current email address is <span className="font-medium">{user?.email}</span>
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700">New Email Address</label>
+                  <input
+                    type="email"
+                    id="newEmail"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    required
+                  />
+                </div>
+                <div className="flex space-x-4">
+                  <button type="submit" className="bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
+                    Update Email
+                  </button>
+                  <button type="button" onClick={() => setIsEditingEmail(false)} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition duration-300">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'subscription' && user && (
+            <SubscriptionDetails userId={user.id} />
+          )}
         </div>
       </div>
     </main>
