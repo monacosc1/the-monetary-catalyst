@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null
   isLoggedIn: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<{ user: User | null; session: Session | null }>
+  register: (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => Promise<{ user: User | null; session: Session | null }>
   logout: () => Promise<void>
   loginAfterRegister: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
@@ -47,50 +47,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // No need to manually set user or isLoggedIn here, as the onAuthStateChange listener will handle it
   }
 
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      // Register with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-        },
-      })
-
-      if (authError) throw authError
-
-      // If auth registration is successful, insert into user_profiles table
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: authData.user.id,
-            email: email,
-            first_name: firstName,
-            last_name: lastName,
-            role: 'user',
-            terms_accepted: true,
-          })
-
-        if (profileError) {
-          console.error('Error inserting into user_profiles table:', profileError)
-          throw profileError
+  const register = async (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => {
+    console.log('Starting registration process:', { email, firstName, lastName, termsAccepted });
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName
         }
-
-        console.log('User profile created')
-
-        return { user: authData.user, session: authData.session }
-      } else {
-        throw new Error('Registration failed')
       }
-    } catch (error) {
-      console.error('Registration error:', error)
-      throw error
+    })
+
+    console.log('Auth signup response:', { data, error });
+
+    if (error) {
+      console.error('Registration error:', error);
+      throw error;
     }
+
+    // Create user profile
+    if (data.user) {
+      console.log('Attempting to create user profile for:', data.user.id);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .insert({
+          user_id: data.user.id,
+          email: data.user.email,
+          first_name: firstName,
+          last_name: lastName,
+          role: 'user',
+          terms_accepted: termsAccepted
+        })
+        .select()
+        .single();
+
+      console.log('Profile creation result:', { profileData, profileError });
+
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        if (profileError.code === 'PGRST301') {
+          console.error('This appears to be a permissions error. Check RLS policies.');
+        }
+        throw profileError;
+      }
+
+      console.log('User profile created successfully:', profileData);
+    }
+
+    return { user: data.user, session: data.session };
   }
 
   const logout = async () => {

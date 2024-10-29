@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
 import { useAuth } from '@/context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
+import { supabase } from '@/utils/supabase'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -33,9 +34,9 @@ export default function RegisterPage() {
     
     console.log('Attempting to register user')
     try {
-      const { user, session } = await register(email, password, firstName, lastName)
+      const { user, session } = await register(email, password, firstName, lastName, agreeTerms)
       console.log('Registration successful', user, session)
-      
+
       console.log('Attempting to log in after registration')
       await loginAfterRegister(email, password)
       console.log('Login after registration successful')
