@@ -118,6 +118,17 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
         await handleSetupIntentSucceeded(setupIntent);
         break;
       }
+      case 'payment_method.attached': {
+        const paymentMethod = event.data.object as Stripe.PaymentMethod;
+        if (paymentMethod.customer) {
+          await stripe.customers.update(paymentMethod.customer as string, {
+            invoice_settings: {
+              default_payment_method: paymentMethod.id
+            }
+          });
+        }
+        break;
+      }
     }
 
     res.json({ received: true });
