@@ -78,13 +78,28 @@ const MyAccountPage = () => {
   const handleUpdateGeneral = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: { first_name: firstName, last_name: lastName }
-      })
-      if (error) throw error
-      setMessage('General information updated successfully')
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user?.id)
+
+      if (profileError) {
+        throw profileError
+      }
+
+      setMessage('Profile updated successfully')
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setMessage('')
+      }, 3000)
     } catch (error: any) {
-      setMessage(error.message || 'An error occurred while updating')
+      console.error('Error updating profile:', error)
+      setMessage(error.message || 'An error occurred while updating profile')
     }
   }
 
@@ -162,7 +177,17 @@ const MyAccountPage = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-semibold mb-4 text-gray-900">Profile</h3>
               
-              <div className="space-y-4">
+              {message && (
+                <div className={`mb-4 p-4 rounded ${
+                  message.includes('error') || message.includes('Error') 
+                    ? 'bg-red-100 text-red-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {message}
+                </div>
+              )}
+              
+              <form onSubmit={handleUpdateGeneral} className="space-y-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First Name</label>
                   <input
@@ -183,10 +208,13 @@ const MyAccountPage = () => {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
                   />
                 </div>
-                <button type="submit" className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
+                <button 
+                  type="submit"
+                  className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300"
+                >
                   Update
                 </button>
-              </div>
+              </form>
             </div>
           )}
 
