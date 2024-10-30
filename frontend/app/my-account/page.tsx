@@ -105,18 +105,47 @@ const MyAccountPage = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (newPassword !== confirmNewPassword) {
-      setMessage('New passwords do not match')
-      return
-    }
+    setMessage('')
+
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
+      // Validate passwords match
+      if (newPassword !== confirmNewPassword) {
+        setMessage('New passwords do not match')
+        return
+      }
+
+      // Validate current password
+      const { data: { user: currentUser }, error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email as string,
+        password: currentPassword
+      })
+
+      if (signInError) {
+        setMessage('Current password is incorrect')
+        return
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      })
+
+      if (updateError) {
+        throw updateError
+      }
+
+      // Clear form and show success message
       setMessage('Password updated successfully')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmNewPassword('')
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setMessage('')
+      }, 3000)
     } catch (error: any) {
+      console.error('Error updating password:', error)
       setMessage(error.message || 'An error occurred while updating password')
     }
   }
@@ -222,7 +251,17 @@ const MyAccountPage = () => {
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-semibold mb-4 text-gray-900">Security</h3>
               
-              <div className="space-y-4">
+              {message && (
+                <div className={`mb-4 p-4 rounded ${
+                  message.includes('error') || message.includes('Error') 
+                    ? 'bg-red-100 text-red-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {message}
+                </div>
+              )}
+              
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
                   <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">Current Password</label>
                   <input
@@ -231,6 +270,7 @@ const MyAccountPage = () => {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    required
                   />
                 </div>
                 <div>
@@ -241,6 +281,7 @@ const MyAccountPage = () => {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    required
                   />
                 </div>
                 <div>
@@ -251,12 +292,16 @@ const MyAccountPage = () => {
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50"
+                    required
                   />
                 </div>
-                <button type="submit" className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300">
+                <button 
+                  type="submit"
+                  className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition duration-300"
+                >
                   Update Password
                 </button>
-              </div>
+              </form>
             </div>
           )}
 
