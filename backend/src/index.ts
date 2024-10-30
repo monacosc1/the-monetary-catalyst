@@ -18,6 +18,12 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }));
 app.use(cors());
 app.use(express.json());
 
+// Add this before your routes
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
 // Routes
 app.use('/api', paymentRoutes);
 

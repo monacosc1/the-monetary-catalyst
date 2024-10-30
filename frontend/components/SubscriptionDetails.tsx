@@ -79,15 +79,21 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
         throw new Error('No valid session')
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/cancel-subscription`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/cancel-subscription`;
+      console.log('Calling URL:', url);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
         }
       })
 
       if (!response.ok) {
-        throw new Error('Failed to cancel subscription')
+        const errorText = await response.text();
+        console.error('Server response:', response.status, errorText);
+        throw new Error(`Failed to cancel subscription: ${errorText}`);
       }
 
       await fetchSubscription()
@@ -95,7 +101,7 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
       setMessage(`Your subscription has been cancelled and will remain active until ${formatDate(subscription?.end_date || null)}.`)
     } catch (error) {
       console.error('Error cancelling subscription:', error)
-      setError('Failed to cancel subscription')
+      setError(error instanceof Error ? error.message : 'Failed to cancel subscription')
     } finally {
       setIsCancelling(false)
     }

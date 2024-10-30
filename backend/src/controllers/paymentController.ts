@@ -625,7 +625,7 @@ export const createSetupIntent = async (req: Request, res: Response): Promise<vo
   }
 };
 
-export const cancelSubscription = async (req: Request, res: Response): Promise<void> => {
+export const cancelSubscription = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -633,31 +633,77 @@ export const cancelSubscription = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Get active subscription
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('*')
+    console.log('Attempting to cancel subscription for userId:', userId);
+
+    // Get active subscription from Supabase - modify the query to find by stripe_subscription_id
+    let activeSubscription;
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('stripe_customer_id')
       .eq('user_id', userId)
-      .eq('status', 'active')
       .single();
 
-    if (!subscription) {
-      res.status(404).json({ error: 'No active subscription found' });
+    if (!userProfile?.stripe_customer_id) {
+      res.status(404).json({ error: 'No customer profile found' });
       return;
     }
 
+    // Get subscription from Stripe first
+    const stripeSubscriptions = await stripe.subscriptions.list({
+      customer: userProfile.stripe_customer_id,
+      status: 'active',
+      limit: 1
+    });
+
+    if (stripeSubscriptions.data.length === 0) {
+      res.status(404).json({ error: 'No active subscription found in Stripe' });
+      return;
+    }
+
+    const stripeSubscription = stripeSubscriptions.data[0];
+
+    // Try to find existing subscription in Supabase by stripe_subscription_id
+    const { data: existingSubscription, error: fetchError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('stripe_subscription_id', stripeSubscription.id)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching subscription:', fetchError);
+      res.status(500).json({ error: 'Failed to fetch subscription data' });
+      return;
+    }
+
+    if (!existingSubscription) {
+      console.error('No subscription found in database for stripe_subscription_id:', stripeSubscription.id);
+      res.status(404).json({ error: 'No subscription found in database' });
+      return;
+    }
+
+    activeSubscription = existingSubscription;
+
+    console.log('Cancelling Stripe subscription:', activeSubscription.stripe_subscription_id);
+
     // Cancel in Stripe at period end
-    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+    await stripe.subscriptions.update(activeSubscription.stripe_subscription_id, {
       cancel_at_period_end: true
     });
 
     // Update subscription in database
-    await supabase
+    const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
-        cancelled_at: new Date().toISOString()
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .eq('id', subscription.id);
+      .eq('stripe_subscription_id', activeSubscription.stripe_subscription_id);
+
+    if (updateError) {
+      console.error('Error updating subscription:', updateError);
+      res.status(500).json({ error: 'Failed to update subscription status' });
+      return;
+    }
 
     res.json({ success: true });
   } catch (error) {
