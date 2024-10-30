@@ -45,7 +45,13 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
         subscription_type: data.subscription_type,
         end_date: data.end_date,
         cancelled_at: data.cancelled_at
-      } : null;
+      } : {
+        status: 'inactive',
+        plan_type: null,
+        subscription_type: null,
+        end_date: null,
+        cancelled_at: null
+      };
 
       console.log('Transformed subscription data:', transformedData);
       setSubscription(transformedData);
@@ -133,9 +139,11 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
                 <span className={`inline-flex px-2 py-1 text-sm rounded-full ${
                   subscription?.status === 'active' 
                     ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
+                    : subscription?.status === 'inactive'
+                    ? 'bg-gray-100 text-gray-800'
+                    : 'bg-red-100 text-red-800'
                 }`}>
-                  {subscription?.status || 'N/A'}
+                  {subscription?.status || 'inactive'}
                 </span>
               </div>
             </div>
