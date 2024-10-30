@@ -16,7 +16,7 @@ export default function PricingPage() {
 
   const handleSubscribe = async () => {
     if (!isLoggedIn) {
-      router.push('/login?redirect=/pricing')
+      router.push('/register?redirect=/pricing')
       return
     }
 

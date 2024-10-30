@@ -2,139 +2,220 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import supabase from '../config/supabase';
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email?: string;
+  };
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-09-30.acacia'
 });
 
-export const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
+export const createCheckoutSession = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { priceId, userId } = req.body;
-    
-    // Validate price ID
-    if (priceId !== process.env.STRIPE_MONTHLY_PRICE_ID && 
-        priceId !== process.env.STRIPE_ANNUAL_PRICE_ID) {
-      res.status(400).json({ error: 'Invalid price ID' });
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    // Get user profile
-    const { data: userProfile, error: userError } = await supabase
+    // Get or create customer
+    let customerId: string;
+    const { data: userProfile } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('stripe_customer_id')
       .eq('user_id', userId)
       .single();
 
-    if (userError || !userProfile) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    // Create or retrieve Stripe customer
-    let customerId = userProfile.stripe_customer_id;
-    
-    if (!customerId) {
+    if (userProfile?.stripe_customer_id) {
+      customerId = userProfile.stripe_customer_id;
+    } else {
+      // Create new customer
       const customer = await stripe.customers.create({
-        email: userProfile.email,
+        email: req.user?.email,
         metadata: {
           userId: userId
         }
       });
       customerId = customer.id;
 
-      // Update user profile with Stripe customer ID
+      // Save customer ID to user_profiles
       await supabase
         .from('user_profiles')
         .update({ stripe_customer_id: customerId })
         .eq('user_id', userId);
     }
 
-    // Create checkout session with payment method collection
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      line_items: [{
-        price: priceId,
-        quantity: 1,
-      }],
       mode: 'subscription',
       payment_method_types: ['card'],
-      payment_method_collection: 'always',
+      customer: customerId,
+      line_items: [
+        {
+          price: req.body.priceId,
+          quantity: 1,
+        },
+      ],
       success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+      client_reference_id: userId,
       metadata: {
-        userId,
-        priceId
+        userId: userId
       }
     });
 
-    res.json({ url: session.url });
+    res.json({ url: session.url }); // Return the URL instead of sessionId
   } catch (error) {
-    console.error('Checkout session error:', error);
+    console.error('Error creating checkout session:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 };
 
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
-  const sig = req.headers['stripe-signature']!;
+  const sig = req.headers['stripe-signature'] as string;
+  let event;
 
   try {
     console.log('Received webhook request');
-    const event = stripe.webhooks.constructEvent(
+    console.log('Stripe signature:', sig);
+    
+    event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET as string
     );
 
     console.log('Webhook event type:', event.type);
-
-    // Log webhook event
-    await supabase
-      .from('stripe_webhook_logs')
-      .insert({
-        stripe_event_id: event.id,
-        event_type: event.type,
-        payload: event
-      });
+    console.log('Webhook event data:', JSON.stringify(event.data.object, null, 2));
 
     switch (event.type) {
-      case 'checkout.session.completed': {
-        console.log('Processing checkout.session.completed');
+      case 'checkout.session.completed':
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutSessionCompleted(session);
-        console.log('Checkout session completed processing');
-        break;
-      }
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaymentSucceeded(invoice);
-        break;
-      }
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaymentFailed(invoice);
-        break;
-      }
-      case 'setup_intent.succeeded': {
-        const setupIntent = event.data.object as Stripe.SetupIntent;
-        await handleSetupIntentSucceeded(setupIntent);
-        break;
-      }
-      case 'payment_method.attached': {
-        const paymentMethod = event.data.object as Stripe.PaymentMethod;
-        if (paymentMethod.customer) {
-          await stripe.customers.update(paymentMethod.customer as string, {
-            invoice_settings: {
-              default_payment_method: paymentMethod.id
-            }
-          });
+        console.log('Processing checkout session:', session.id);
+
+        // Get subscription details from Stripe
+        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+        console.log('Retrieved subscription details:', subscription);
+        
+        // Create subscription record in Supabase
+        const { data: subData, error: insertError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: session.client_reference_id,
+            stripe_subscription_id: session.subscription,
+            status: 'active',
+            plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+            subscription_type: 'professional',
+            start_date: new Date(subscription.current_period_start * 1000).toISOString(),
+            end_date: new Date(subscription.current_period_end * 1000).toISOString(),
+            payment_status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_payment_date: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        console.log('Supabase subscription insert result:', { data: subData, error: insertError });
+
+        if (insertError) {
+          console.error('Error inserting subscription:', insertError);
+          throw new Error('Failed to create subscription record');
         }
+
+        // Add more detailed logging for payment creation
+        console.log('Session invoice details:', {
+          invoice: session.invoice,
+          payment_intent: session.payment_intent,
+          amount_total: session.amount_total
+        });
+
+        try {
+          // Get the invoice for this session
+          if (!session.invoice) {
+            throw new Error('No invoice found in session');
+          }
+
+          const invoice = await stripe.invoices.retrieve(session.invoice as string);
+          console.log('Retrieved invoice details:', {
+            id: invoice.id,
+            payment_intent: invoice.payment_intent,
+            amount_paid: invoice.amount_paid,
+            status: invoice.status
+          });
+
+          // Create payment record with additional error handling
+          const paymentData = {
+            user_id: session.client_reference_id,
+            subscription_id: subData.id,
+            amount: invoice.amount_paid / 100,
+            date: new Date().toISOString(),
+            status: 'successful',
+            stripe_payment_id: invoice.payment_intent as string,
+            stripe_invoice_id: invoice.id,
+            stripe_payment_status: 'succeeded',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          console.log('Attempting to insert payment record:', paymentData);
+
+          const { data: payData, error: paymentError } = await supabase
+            .from('payments')
+            .insert(paymentData)
+            .select()
+            .single();
+
+          console.log('Supabase payment insert result:', { data: payData, error: paymentError });
+
+          if (paymentError) {
+            console.error('Error inserting payment:', paymentError);
+            console.error('Payment insert error details:', {
+              code: paymentError.code,
+              message: paymentError.message,
+              details: paymentError.details
+            });
+            // Don't throw here, but log the error
+          }
+
+          // Update subscription with last_payment_id only if payment was created
+          if (payData) {
+            const { error: updateError } = await supabase
+              .from('subscriptions')
+              .update({
+                last_payment_id: payData.id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', subData.id);
+
+            if (updateError) {
+              console.error('Error updating subscription with payment ID:', updateError);
+            }
+          }
+        } catch (error) {
+          console.error('Error processing payment record:', error);
+          // Log error but don't throw to ensure webhook completes
+        }
+
         break;
-      }
+
+      // Handle other webhook events as needed
+      case 'customer.subscription.updated':
+        // Handle subscription updates
+        break;
+
+      case 'customer.subscription.deleted':
+        // Handle subscription cancellations
+        break;
     }
 
     res.json({ received: true });
-  } catch (error) {
-    console.error('Webhook error details:', error);
-    res.status(400).json({ error: 'Webhook error' });
+  } catch (err: unknown) {
+    console.error('Webhook error:', err);
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+    res.status(400).send(`Webhook Error: ${errorMessage}`);
   }
 };
 
