@@ -394,7 +394,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
-    // Create payment record
+    // Create payment record (new row in payments table)
     const { data: paymentData, error: paymentError } = await supabase
       .from('payments')
       .insert({
@@ -415,12 +415,14 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
-    // Only update fields not handled by the trigger
+    // Update existing subscription (no new row created)
     const { error: updateError } = await supabase
       .from('subscriptions')
       .update({
         payment_status: 'active',
-        end_date: new Date(subscription.current_period_end * 1000)
+        end_date: new Date(subscription.current_period_end * 1000),
+        updated_at: new Date().toISOString(),
+        last_payment_date: new Date().toISOString()
       })
       .eq('stripe_subscription_id', subscription.id);
 
