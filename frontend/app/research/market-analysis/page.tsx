@@ -1,9 +1,9 @@
 import { Suspense } from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import Image from 'next/image';
 import Link from 'next/link';
 import articleService from '@/services/articleService';
 import DotPattern from '@/components/DotPattern';
+import ArticleImage from '@/components/ArticleImage';
 
 // Make the component async to fetch data
 export default async function MarketAnalysisPage() {
@@ -16,7 +16,7 @@ export default async function MarketAnalysisPage() {
 
     console.log('Articles Response:', articlesResponse); // Debug log
 
-    const { data: articles, count: totalArticles } = articlesResponse;
+    const { data: articles, meta } = articlesResponse;
     
     if (!articles || articles.length === 0) {
       return (
@@ -27,7 +27,7 @@ export default async function MarketAnalysisPage() {
       );
     }
 
-    const totalPages = Math.ceil(totalArticles / 10);
+    const totalPages = Math.ceil(meta.pagination.total / 10);
 
     return (
       <div className="bg-white text-black min-h-screen">
@@ -43,22 +43,15 @@ export default async function MarketAnalysisPage() {
                   <div key={article.id} className="bg-gray-100 rounded-lg shadow-xl overflow-hidden">
                     <div className="md:flex">
                       <div className="md:flex-shrink-0">
-                        <Image
-                          src="/images/placeholder.png"
-                          alt={article.title}
-                          width={300}
-                          height={200}
-                          className="h-48 w-full object-cover md:w-48"
+                        <ArticleImage
+                          imageUrl={article.feature_image_url}
+                          title={article.title}
+                          strapiUrl={process.env.NEXT_PUBLIC_STRAPI_URL || ''}
                         />
                       </div>
                       <div className="p-8">
                         <p className="text-sm text-gray-600 mb-1">
-                          {new Date(article.publish_date + 'T00:00:00Z').toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            timeZone: 'UTC'
-                          })}
+                          {new Date(article.publish_date).toLocaleDateString()}
                         </p>
                         <h2 className="text-2xl font-semibold text-black mb-2">
                           {article.title}

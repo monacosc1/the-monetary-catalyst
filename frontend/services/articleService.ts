@@ -1,45 +1,43 @@
-import { supabase } from '@/utils/supabase';
+const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
 
-// Types for article data
 export interface ArticlePreview {
-  id: string;
+  id: number;
+  documentId: string;
   title: string;
-  excerpt: string;
-  publish_date: string;
-  slug: string;
-  article_status: string;
-  article_type: string;
-  published_at: string;
-  document_id: string;
-}
-
-// New interface for minimal article data
-export interface ArticleListItem {
-  id: string;
-  title: string;
-  slug: string;
-}
-
-export interface ArticleContent {
-  type: 'paragraph' | 'image';
-  content?: string;
-  url?: string;
-  caption?: string;
-}
-
-export interface FullArticle extends ArticlePreview {
-  content: ArticleContent[];
+  content: any[];
   author: string;
-  updated_at: string;
-  created_at: string;
-  created_by_id: string;
-  updated_by_id: string;
-  locale: string;
+  publish_date: string;
+  article_type: string;
+  slug: string;
+  excerpt: string;
+  article_status: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+  feature_image_url: {
+    id: number;
+    name: string;
+    url: string;
+    formats: {
+      large?: { url: string };
+      small?: { url: string };
+      medium?: { url: string };
+      thumbnail?: { url: string };
+    };
+  };
+  article_images: any[];
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
-  count: number;
+  meta: {
+    pagination: {
+      page: number;
+      pageSize: number;
+      pageCount: number;
+      total: number;
+    };
+  };
 }
 
 const articleService = {
@@ -47,104 +45,58 @@ const articleService = {
    * Get paginated list of published article previews
    */
   async getArticlePreviews(page = 1, pageSize = 10): Promise<PaginatedResponse<ArticlePreview>> {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize - 1;
+    const url = `${STRAPI_URL}/api/articles?` + 
+      new URLSearchParams({
+        'pagination[page]': page.toString(),
+        'pagination[pageSize]': pageSize.toString(),
+        'populate': 'feature_image_url',
+        'filters[article_status][$eq]': 'published',
+        'sort[0]': 'publish_date:desc'
+      });
 
-    const { data, error, count } = await supabase
-      .from('articles')
-      .select(`
-        id, 
-        title, 
-        excerpt, 
-        publish_date, 
-        slug, 
-        article_status,
-        article_type,
-        published_at,
-        document_id
-      `, { count: 'exact' })
-      .eq('article_status', 'published')
-      .not('published_at', 'is', null)
-      .order('publish_date', { ascending: false })
-      .range(start, end);
+    console.log('Fetching from URL:', url);
 
-    console.log('Raw Supabase Response:', { data, error, count });
-    
-    if (error) {
-      console.error('Error fetching articles:', error);
-      throw error;
-    }
-
-    // Format dates to local timezone
-    const formattedData = data?.map(article => ({
-      ...article,
-      publish_date: new Date(article.publish_date).toISOString().split('T')[0]
-    }));
-
-    return {
-      data: formattedData || [],
-      count: count || 0
-    };
-  },
-
-  /**
-   * Get full article content by slug
-   */
-  async getArticleBySlug(slug: string): Promise<FullArticle | null> {
-    const { data, error } = await supabase
-      .from('articles')
-      .select(`
-        id,
-        title,
-        excerpt,
-        publish_date,
-        slug,
-        article_status,
-        article_type,
-        content,
-        author,
-        updated_at,
-        created_at,
-        published_at,
-        document_id,
-        created_by_id,
-        updated_by_id,
-        locale
-      `)
-      .eq('slug', slug)
-      .eq('article_status', 'published')
-      .not('published_at', 'is', null)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') { // Record not found
-        return null;
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Strapi response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch articles: ${response.status} ${response.statusText}`);
       }
-      console.error('Error fetching article:', error);
+
+      const data = await response.json();
+      console.log('Strapi response data (detailed):', JSON.stringify(data, null, 2));
+      return data;
+    } catch (error) {
+      console.error('Error fetching from Strapi:', error);
       throw error;
     }
-
-    return data;
   },
 
   /**
    * Get popular articles for sidebar
    */
-  async getPopularArticles(limit = 3): Promise<ArticleListItem[]> {
-    const { data, error } = await supabase
-      .from('articles')
-      .select('id, title, slug')
-      .eq('article_status', 'published')
-      .not('published_at', 'is', null)
-      .order('publish_date', { ascending: false })
-      .limit(limit);
+  async getPopularArticles(limit = 3): Promise<ArticlePreview[]> {
+    const response = await fetch(
+      `${STRAPI_URL}/api/articles?` +
+      new URLSearchParams({
+        'pagination[limit]': limit.toString(),
+        'filters[article_status][$eq]': 'published',
+        'sort[0]': 'publish_date:desc'
+      })
+    );
 
-    if (error) {
-      console.error('Error fetching popular articles:', error);
-      throw error;
+    if (!response.ok) {
+      throw new Error('Failed to fetch popular articles');
     }
 
-    return data || [];
+    const data = await response.json();
+    return data.data;
   }
 };
 
