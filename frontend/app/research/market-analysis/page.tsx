@@ -46,19 +46,27 @@ export default async function MarketAnalysisPage() {
                   <div key={article.id} className="bg-gray-100 rounded-lg shadow-xl overflow-hidden">
                     <div className="md:flex">
                       <div className="md:flex-shrink-0">
-                        <ArticleImage
-                          imageUrl={article.feature_image_url}
-                          title={article.title}
-                          strapiUrl={process.env.NEXT_PUBLIC_STRAPI_URL || ''}
-                        />
+                        <Link href={`/research/market-analysis/${article.slug}`}>
+                          <ArticleImage
+                            imageUrl={article.feature_image_url}
+                            title={article.title}
+                            strapiUrl={process.env.NEXT_PUBLIC_STRAPI_URL || ''}
+                            className="cursor-pointer transition-opacity hover:opacity-80"
+                          />
+                        </Link>
                       </div>
                       <div className="p-8">
                         <p className="text-sm text-gray-600 mb-1">
                           {new Date(article.publish_date).toLocaleDateString()}
                         </p>
-                        <h2 className="text-2xl font-semibold text-black mb-2">
-                          {article.title}
-                        </h2>
+                        <Link 
+                          href={`/research/market-analysis/${article.slug}`}
+                          className="block mb-2"
+                        >
+                          <h2 className="text-2xl font-semibold text-black hover:text-primary transition-colors cursor-pointer">
+                            {article.title}
+                          </h2>
+                        </Link>
                         <p className="text-gray-700 mb-4">{article.excerpt}</p>
                         <Link 
                           href={`/research/market-analysis/${article.slug}`}

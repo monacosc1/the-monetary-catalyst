@@ -109,7 +109,8 @@ const articleService = {
         sampleArticle: data.data[0] ? {
           hasAttributes: 'attributes' in data.data[0],
           topLevelKeys: Object.keys(data.data[0]),
-          fullArticle: data.data[0]
+          fullArticle: data.data[0],
+          featureImageUrl: JSON.stringify(data.data[0].feature_image_url, null, 2)
         } : 'No articles found'
       });
       return data;
