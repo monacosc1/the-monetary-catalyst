@@ -9,7 +9,7 @@ import articleService, { StrapiImage } from '@/services/articleService';
 export default async function ArticlePage({ params }: { params: { slug: string } }) {
   try {
     const article = await articleService.getArticleBySlug(params.slug);
-    console.log('Article data:', JSON.stringify(article, null, 2)); // Debug log
+    console.log('Article data:', JSON.stringify(article, null, 2));
 
     if (!article) {
       return (
@@ -34,7 +34,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
     };
 
     // Get feature image URL
-    const featureImageUrl = getCleanImageUrl(article.attributes?.feature_image_url || article.feature_image_url);
+    const featureImageUrl = getCleanImageUrl(article.feature_image_url);
 
     return (
       <div className="bg-background-dark text-white min-h-screen py-12 relative">
@@ -42,11 +42,11 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         <div className="container mx-auto px-4 relative z-10">
           <div className="bg-white text-black p-8 rounded-lg shadow-xl">
             <h1 className="text-4xl font-bold mb-4">
-              {article.attributes?.title || article.title}
+              {article.title}
             </h1>
             <p className="text-gray-600 mb-4">
-              By {article.attributes?.author || article.author} | Published on {
-                new Date(article.attributes?.publish_date || article.publish_date).toLocaleDateString()
+              By {article.author} | Published on {
+                new Date(article.publish_date).toLocaleDateString()
               }
             </p>
             
@@ -54,7 +54,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             {featureImageUrl && (
               <Image 
                 src={featureImageUrl}
-                alt={article.attributes?.title || article.title}
+                alt={article.title}
                 width={800}
                 height={400}
                 className="mb-8 rounded-lg"
@@ -62,7 +62,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             )}
 
             {/* Article Content */}
-            {(article.attributes?.content || article.content).map((block: any, index: number) => {
+            {article.content.map((block: any, index: number) => {
               if (block.type === 'paragraph') {
                 return (
                   <p key={index} className="mb-4">
@@ -122,7 +122,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             })}
 
             {/* Article Images */}
-            {(article.attributes?.article_images?.data || article.article_images?.data)?.map((image: StrapiImage, index: number) => {
+            {article.article_images?.data?.map((image: StrapiImage, index: number) => {
               const imageUrl = getCleanImageUrl(image.attributes);
               return imageUrl ? (
                 <div key={index} className="mb-8">
