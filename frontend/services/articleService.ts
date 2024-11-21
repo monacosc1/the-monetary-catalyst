@@ -1,5 +1,30 @@
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
 
+interface ImageFormat {
+  ext: string;
+  url: string;
+  hash: string;
+  mime: string;
+  name: string;
+  size: number;
+  width: number;
+  height: number;
+}
+
+export interface StrapiImage {
+  id: number;
+  attributes: {
+    url: string;
+    caption?: string;
+    formats?: {
+      large?: ImageFormat;
+      small?: ImageFormat;
+      medium?: ImageFormat;
+      thumbnail?: ImageFormat;
+    };
+  };
+}
+
 export interface ArticlePreview {
   id: number;
   documentId: string;
@@ -25,7 +50,9 @@ export interface ArticlePreview {
       thumbnail?: { url: string };
     };
   };
-  article_images: any[];
+  article_images: {
+    data: StrapiImage[];
+  };
 }
 
 export interface PaginatedResponse<T> {
@@ -97,6 +124,37 @@ const articleService = {
 
     const data = await response.json();
     return data.data;
+  },
+
+  /**
+   * Get full article by slug
+   */
+  async getArticleBySlug(slug: string): Promise<ArticlePreview | null> {
+    const url = `${STRAPI_URL}/api/articles?` + 
+      new URLSearchParams({
+        'filters[slug][$eq]': slug,
+        'populate': '*'  // Populate all relations including article_images
+      });
+
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch article: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Article detail data:', JSON.stringify(data, null, 2));
+      
+      if (!data.data || data.data.length === 0) {
+        return null;
+      }
+
+      return data.data[0];
+    } catch (error) {
+      console.error('Error fetching article:', error);
+      throw error;
+    }
   }
 };
 
