@@ -407,7 +407,9 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
       'api::article.article'
     > &
       Schema.Attribute.Private;
-    publish_date: Schema.Attribute.Date;
+    publish_date: Schema.Attribute.Date &
+      Schema.Attribute.Required &
+      Schema.Attribute.Configurable;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.String &
       Schema.Attribute.Required &

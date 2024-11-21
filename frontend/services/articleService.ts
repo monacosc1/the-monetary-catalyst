@@ -1,3 +1,5 @@
+import { formatPublishDate } from '@/utils/dateFormatters';
+
 const STRAPI_URL = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
 
 interface ImageFormat {
@@ -112,6 +114,11 @@ const articleService = {
           fullArticle: data.data[0],
           featureImageUrl: JSON.stringify(data.data[0].feature_image_url, null, 2)
         } : 'No articles found'
+      });
+      console.log('Article date debug:', {
+        firstArticleDate: data.data[0]?.publish_date,
+        formattedDate: formatPublishDate(data.data[0]?.publish_date),
+        rawDate: new Date(data.data[0]?.publish_date).toISOString()
       });
       return data;
     } catch (error) {

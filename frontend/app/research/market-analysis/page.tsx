@@ -4,6 +4,7 @@ import Link from 'next/link';
 import articleService from '@/services/articleService';
 import DotPattern from '@/components/DotPattern';
 import ArticleImage from '@/components/ArticleImage';
+import { formatPublishDate } from '@/utils/dateFormatters';
 
 // Add this at the top of the file
 export const revalidate = 0;  // Disable caching
@@ -57,7 +58,7 @@ export default async function MarketAnalysisPage() {
                       </div>
                       <div className="p-8">
                         <p className="text-sm text-gray-600 mb-1">
-                          {new Date(article.publish_date).toLocaleDateString()}
+                          {formatPublishDate(article.publish_date)}
                         </p>
                         <Link 
                           href={`/research/market-analysis/${article.slug}`}

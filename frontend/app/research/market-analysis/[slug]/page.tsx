@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import DotPattern from '@/components/DotPattern';
 import articleService, { StrapiImage } from '@/services/articleService';
+import { formatPublishDate } from '@/utils/dateFormatters';
 
 export default async function ArticlePage({ params }: { params: { slug: string } }) {
   try {
@@ -45,9 +46,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
               {article.title}
             </h1>
             <p className="text-gray-600 mb-4">
-              By {article.author} | Published on {
-                new Date(article.publish_date).toLocaleDateString()
-              }
+              By {article.author} | Published on {formatPublishDate(article.publish_date)}
             </p>
             
             {/* Feature Image */}

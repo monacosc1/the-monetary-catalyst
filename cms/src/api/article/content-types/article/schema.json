@@ -22,7 +22,9 @@
       "type": "string"
     },
     "publish_date": {
-      "type": "date"
+      "type": "date",
+      "required": true,
+      "configurable": true
     },
     "article_type": {
       "type": "enumeration",
