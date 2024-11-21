@@ -9,6 +9,7 @@ import articleService, { StrapiImage } from '@/services/articleService';
 export default async function ArticlePage({ params }: { params: { slug: string } }) {
   try {
     const article = await articleService.getArticleBySlug(params.slug);
+    console.log('Article data:', JSON.stringify(article, null, 2)); // Debug log
 
     if (!article) {
       return (
@@ -19,21 +20,41 @@ export default async function ArticlePage({ params }: { params: { slug: string }
       );
     }
 
+    // Helper function to clean image URLs
+    const getCleanImageUrl = (imageData: any) => {
+      if (!imageData) return null;
+      
+      // Handle nested data structure
+      const rawUrl = imageData.data?.attributes?.url || imageData.url;
+      if (!rawUrl) return null;
+
+      // Remove any duplicate Strapi URL prefixes
+      const cleanUrl = rawUrl.replace(/^http:\/\/localhost:1337/, '');
+      return `${process.env.NEXT_PUBLIC_STRAPI_URL}${cleanUrl}`;
+    };
+
+    // Get feature image URL
+    const featureImageUrl = getCleanImageUrl(article.attributes?.feature_image_url || article.feature_image_url);
+
     return (
       <div className="bg-background-dark text-white min-h-screen py-12 relative">
         <DotPattern />
         <div className="container mx-auto px-4 relative z-10">
           <div className="bg-white text-black p-8 rounded-lg shadow-xl">
-            <h1 className="text-4xl font-bold mb-4">{article.title}</h1>
+            <h1 className="text-4xl font-bold mb-4">
+              {article.attributes?.title || article.title}
+            </h1>
             <p className="text-gray-600 mb-4">
-              By {article.author} | Published on {new Date(article.publish_date).toLocaleDateString()}
+              By {article.attributes?.author || article.author} | Published on {
+                new Date(article.attributes?.publish_date || article.publish_date).toLocaleDateString()
+              }
             </p>
             
             {/* Feature Image */}
-            {article.feature_image_url && (
+            {featureImageUrl && (
               <Image 
-                src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${article.feature_image_url.url}`}
-                alt={article.title}
+                src={featureImageUrl}
+                alt={article.attributes?.title || article.title}
                 width={800}
                 height={400}
                 className="mb-8 rounded-lg"
@@ -41,7 +62,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             )}
 
             {/* Article Content */}
-            {article.content.map((block: any, index: number) => {
+            {(article.attributes?.content || article.content).map((block: any, index: number) => {
               if (block.type === 'paragraph') {
                 return (
                   <p key={index} className="mb-4">
@@ -77,24 +98,47 @@ export default async function ArticlePage({ params }: { params: { slug: string }
                 );
               }
 
+              if (block.type === 'image') {
+                const imageUrl = getCleanImageUrl(block.image);
+                return imageUrl ? (
+                  <div key={index} className="my-8">
+                    <Image
+                      src={imageUrl}
+                      alt={block.image.alternativeText || 'Article image'}
+                      width={800}
+                      height={400}
+                      className="rounded-lg mx-auto"
+                    />
+                    {block.image.caption && (
+                      <p className="text-sm text-gray-600 text-center mt-2">
+                        {block.image.caption}
+                      </p>
+                    )}
+                  </div>
+                ) : null;
+              }
+
               return null;
             })}
 
             {/* Article Images */}
-            {article?.article_images?.data?.map((image: StrapiImage, index: number) => (
-              <div key={index} className="mb-8">
-                <Image 
-                  src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${image.attributes.url}`}
-                  alt={`Article image ${index + 1}`}
-                  width={600}
-                  height={400}
-                  className="rounded-lg"
-                />
-                {image.attributes.caption && (
-                  <p className="text-sm text-gray-600 mt-2">{image.attributes.caption}</p>
-                )}
-              </div>
-            ))}
+            {(article.attributes?.article_images?.data || article.article_images?.data)?.map((image: StrapiImage, index: number) => {
+              const imageUrl = getCleanImageUrl(image.attributes);
+              return imageUrl ? (
+                <div key={index} className="mb-8">
+                  <Image 
+                    src={imageUrl}
+                    alt={`Article image ${index + 1}`}
+                    width={600}
+                    height={400}
+                    className="rounded-lg"
+                  />
+                  {image.attributes.caption && (
+                    <p className="text-sm text-gray-600 mt-2">{image.attributes.caption}</p>
+                  )}
+                </div>
+              ) : null;
+            })}
 
             {/* Back Button */}
             <button 

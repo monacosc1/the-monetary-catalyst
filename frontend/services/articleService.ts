@@ -27,31 +27,37 @@ export interface StrapiImage {
 
 export interface ArticlePreview {
   id: number;
-  documentId: string;
-  title: string;
-  content: any[];
-  author: string;
-  publish_date: string;
-  article_type: string;
-  slug: string;
-  excerpt: string;
-  article_status: string;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
-  feature_image_url: {
-    id: number;
-    name: string;
-    url: string;
-    formats: {
-      large?: { url: string };
-      small?: { url: string };
-      medium?: { url: string };
-      thumbnail?: { url: string };
+  attributes: {
+    documentId: string;
+    title: string;
+    content: any[];
+    author: string;
+    publish_date: string;
+    article_type: string;
+    slug: string;
+    excerpt: string;
+    article_status: string;
+    createdAt: string;
+    updatedAt: string;
+    publishedAt: string;
+    feature_image_url: {
+      data: {
+        id: number;
+        attributes: {
+          name: string;
+          url: string;
+          formats: {
+            large?: { url: string };
+            small?: { url: string };
+            medium?: { url: string };
+            thumbnail?: { url: string };
+          };
+        };
+      };
     };
-  };
-  article_images: {
-    data: StrapiImage[];
+    article_images: {
+      data: StrapiImage[];
+    };
   };
 }
 
@@ -76,15 +82,18 @@ const articleService = {
       new URLSearchParams({
         'pagination[page]': page.toString(),
         'pagination[pageSize]': pageSize.toString(),
-        'populate': 'feature_image_url',
+        'populate': '*',
         'filters[article_status][$eq]': 'published',
-        'sort[0]': 'publish_date:desc'
+        'filters[publishedAt][$notNull]': 'true',
+        'sort[0]': 'publishedAt:desc'
       });
 
     console.log('Fetching from URL:', url);
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        cache: 'no-store'
+      });
       
       if (!response.ok) {
         const errorText = await response.text();

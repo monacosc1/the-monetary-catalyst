@@ -5,6 +5,9 @@ import articleService from '@/services/articleService';
 import DotPattern from '@/components/DotPattern';
 import ArticleImage from '@/components/ArticleImage';
 
+// Add this at the top of the file
+export const revalidate = 0;  // Disable caching
+
 // Make the component async to fetch data
 export default async function MarketAnalysisPage() {
   try {
