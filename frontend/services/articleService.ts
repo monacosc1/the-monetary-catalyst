@@ -131,14 +131,15 @@ const articleService = {
   /**
    * Get popular articles for sidebar
    */
-  async getPopularArticles(limit = 3): Promise<ArticlePreview[]> {
+  async getPopularArticles(limit = 5): Promise<ArticlePreview[]> {
     const response = await fetch(
       `${STRAPI_URL}/api/articles?` +
       new URLSearchParams({
         'pagination[limit]': limit.toString(),
         'filters[article_status][$eq]': 'published',
         'filters[article_type][$eq]': 'market-analysis',
-        'sort[0]': 'publish_date:desc'
+        'filters[publishedAt][$notNull]': 'true',
+        'sort[0]': 'publishedAt:desc'
       })
     );
 
@@ -147,7 +148,7 @@ const articleService = {
     }
 
     const data = await response.json();
-    return data.data;
+    return data.data.slice(0, 5);
   },
 
   /**
@@ -231,14 +232,15 @@ const articleService = {
   /**
    * Get popular investment idea articles for sidebar
    */
-  async getPopularInvestmentIdeas(limit = 3): Promise<ArticlePreview[]> {
+  async getPopularInvestmentIdeas(limit = 5): Promise<ArticlePreview[]> {
     const response = await fetch(
       `${STRAPI_URL}/api/articles?` +
       new URLSearchParams({
         'pagination[limit]': limit.toString(),
         'filters[article_status][$eq]': 'published',
         'filters[article_type][$eq]': 'investment-idea',
-        'sort[0]': 'publish_date:desc'
+        'filters[publishedAt][$notNull]': 'true',
+        'sort[0]': 'publishedAt:desc'
       })
     );
 
@@ -247,7 +249,7 @@ const articleService = {
     }
 
     const data = await response.json();
-    return data.data;
+    return data.data.slice(0, 5);
   }
 };
 
