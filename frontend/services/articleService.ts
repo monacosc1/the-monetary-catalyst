@@ -186,6 +186,68 @@ const articleService = {
       console.error('Error fetching article:', error);
       throw error;
     }
+  },
+
+  /**
+   * Get paginated list of published investment idea previews
+   */
+  async getInvestmentIdeasPreviews(page = 1, pageSize = 10): Promise<PaginatedResponse<ArticlePreview>> {
+    const url = `${STRAPI_URL}/api/articles?` + 
+      new URLSearchParams({
+        'pagination[page]': page.toString(),
+        'pagination[pageSize]': pageSize.toString(),
+        'populate': '*',
+        'filters[article_status][$eq]': 'published',
+        'filters[publishedAt][$notNull]': 'true',
+        'filters[article_type][$eq]': 'investment-idea',
+        'sort[0]': 'publishedAt:desc'
+      });
+
+    console.log('Fetching investment ideas from URL:', url);
+
+    try {
+      const response = await fetch(url, {
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Strapi response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch investment ideas: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching from Strapi:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get popular investment idea articles for sidebar
+   */
+  async getPopularInvestmentIdeas(limit = 3): Promise<ArticlePreview[]> {
+    const response = await fetch(
+      `${STRAPI_URL}/api/articles?` +
+      new URLSearchParams({
+        'pagination[limit]': limit.toString(),
+        'filters[article_status][$eq]': 'published',
+        'filters[article_type][$eq]': 'investment-idea',
+        'sort[0]': 'publish_date:desc'
+      })
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch popular investment ideas');
+    }
+
+    const data = await response.json();
+    return data.data;
   }
 };
 
