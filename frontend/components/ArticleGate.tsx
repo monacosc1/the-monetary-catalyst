@@ -64,7 +64,11 @@ export default function ArticleGate({
               <Link href="/pricing" className="text-primary hover:text-accent1 font-semibold">
                 Subscribe
               </Link>
-              <span className="text-gray-700"> or log in to read the rest of this content.</span>
+              <span className="text-gray-700"> or </span>
+              <Link href="/login" className="text-primary hover:text-accent1 font-semibold">
+                log in
+              </Link>
+              <span className="text-gray-700"> to read the rest of this content.</span>
             </>
           )}
         </p>
