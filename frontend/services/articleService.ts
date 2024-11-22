@@ -85,6 +85,7 @@ const articleService = {
         'populate': '*',
         'filters[article_status][$eq]': 'published',
         'filters[publishedAt][$notNull]': 'true',
+        'filters[article_type][$eq]': 'market-analysis',
         'sort[0]': 'publishedAt:desc'
       });
 
@@ -136,6 +137,7 @@ const articleService = {
       new URLSearchParams({
         'pagination[limit]': limit.toString(),
         'filters[article_status][$eq]': 'published',
+        'filters[article_type][$eq]': 'market-analysis',
         'sort[0]': 'publish_date:desc'
       })
     );
