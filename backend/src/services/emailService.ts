@@ -29,7 +29,7 @@ class EmailService {
     const msg = {
       to: userEmail,
       from: process.env.FROM_EMAIL!,
-      templateId: 'd-xxxxx', // Your SendGrid template ID
+      templateId: 'd-16a5708cb9ed4700b8699efe181eda18', // Replace with your actual template ID
       dynamicTemplateData: {
         name: userName,
       },
@@ -41,7 +41,7 @@ class EmailService {
     const msg = {
       to: userEmail,
       from: process.env.FROM_EMAIL!,
-      templateId: 'd-yyyyy', // Your SendGrid template ID
+      templateId: 'd-02338cf0d38c4263b39be0ed4677454d', // Your SendGrid template ID
       dynamicTemplateData: {
         name: userName,
         planType,
@@ -50,15 +50,28 @@ class EmailService {
     return sgMail.send(msg);
   }
 
-  async sendNewArticleNotification(subscribers: Array<{email: string, name: string}>, articleData: any) {
+  async sendNewArticleNotification(subscribers: Array<{email: string, name: string}>, articleData: {
+    title: string;
+    excerpt: string;
+    featureImageUrl: string;
+    articleUrl: string;
+    category: 'market-analysis' | 'investment-ideas';
+  }) {
+    // Choose template based on category
+    const templateId = articleData.category === 'market-analysis' 
+      ? 'd-your-market-analysis-template-id'
+      : 'd-your-investment-ideas-template-id';
+
     const msg = {
       to: subscribers.map(sub => sub.email),
       from: process.env.FROM_EMAIL!,
-      templateId: 'd-zzzzz', // Your SendGrid template ID
+      templateId: templateId,
       dynamicTemplateData: {
-        articleTitle: articleData.title,
-        articleUrl: articleData.url,
-        // other article data
+        title: articleData.title,
+        excerpt: articleData.excerpt,
+        featureImageUrl: articleData.featureImageUrl,
+        articleUrl: articleData.articleUrl,
+        // You can add more dynamic data here
       },
     };
     return sgMail.send(msg);
