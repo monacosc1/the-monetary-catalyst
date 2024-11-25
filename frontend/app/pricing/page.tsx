@@ -14,6 +14,9 @@ export default function PricingPage() {
   const { user, isLoggedIn } = useAuth()
   const router = useRouter()
 
+  const MONTHLY_PRICE = 35
+  const ANNUAL_PRICE = 336
+
   const handleSubscribe = async () => {
     if (!isLoggedIn) {
       router.push('/register?redirect=/pricing')
@@ -105,7 +108,7 @@ export default function PricingPage() {
             </h3>
             <div className="mt-4 flex justify-center items-baseline">
               <span className="text-5xl font-extrabold text-gray-900">
-                ${isAnnual ? '199' : '24'}
+                ${isAnnual ? ANNUAL_PRICE : MONTHLY_PRICE}
               </span>
               <span className="text-xl text-gray-500">
                 /{isAnnual ? 'year' : 'month'}
