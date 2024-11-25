@@ -18,57 +18,65 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        first_name,
+        last_name
+      }
+    });
 
-    if (existingUser) {
-      res.status(400).json({ message: 'User already exists' });
+    if (authError) {
+      console.error('Supabase Auth error:', authError);
+      res.status(400).json({ message: authError.message });
       return;
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create new user
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert({ email, password_hash: hashedPassword, first_name, last_name, terms_accepted: true })
+    // Create user profile
+    const { data: profileData, error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        user_id: authData.user.id,
+        email,
+        first_name,
+        last_name,
+        role: 'user',
+        terms_accepted: termsAccepted
+      })
       .select()
       .single();
 
-    if (error) {
-      console.error('Supabase error:', error);
-      res.status(500).json({ message: 'Error creating user', error: error.message });
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      // If profile creation fails, we should clean up the auth user
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      res.status(500).json({ message: 'Error creating user profile' });
       return;
     }
 
-    // After successful user creation
-    if (newUser) {
-      console.log('Attempting to send welcome email to:', newUser.email);
-      try {
-        await emailService.sendWelcomeEmail(
-          newUser.email,
-          `${newUser.first_name} ${newUser.last_name}`.trim()
-        );
-        console.log('Welcome email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send welcome email:', emailError);
-        // Don't throw error here - we still want to complete registration
-      }
+    // Send welcome email
+    try {
+      await emailService.sendWelcomeEmail(
+        email,
+        first_name
+      );
+      console.log('Welcome email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Continue with registration even if email fails
     }
 
-    // Generate JWT token
-    const token = signToken(newUser.id);
-
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User registered successfully',
-      user: { id: newUser.id, email: newUser.email, first_name: newUser.first_name, last_name: newUser.last_name },
-      token 
+      user: {
+        id: authData.user.id,
+        email,
+        first_name,
+        last_name
+      }
     });
   } catch (error) {
     console.error('Unexpected error:', error);

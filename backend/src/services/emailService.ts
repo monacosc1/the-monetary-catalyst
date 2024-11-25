@@ -25,14 +25,14 @@ class EmailService {
   }
 
   // Transactional emails
-  async sendWelcomeEmail(userEmail: string, userName: string) {
+  async sendWelcomeEmail(userEmail: string, firstName: string) {
     console.log('EmailService: Sending welcome email to:', userEmail);
     const msg = {
       to: userEmail,
       from: process.env.FROM_EMAIL!,
       templateId: 'd-16a5708cb9ed4700b8699efe181eda18',
       dynamicTemplateData: {
-        name: userName,
+        name: firstName,
       },
     };
     console.log('EmailService: Email payload:', msg);

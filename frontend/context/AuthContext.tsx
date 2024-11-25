@@ -50,56 +50,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => {
     console.log('Starting registration process:', { email, firstName, lastName, termsAccepted });
     
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
+    try {
+      // Call backend registration endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
           first_name: firstName,
-          last_name: lastName
-        }
+          last_name: lastName,
+          termsAccepted,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
       }
-    })
 
-    console.log('Auth signup response:', { data, error });
+      // After successful registration, sign in with Supabase
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
+      if (signInError) throw signInError;
+
+      return { user: authData.user, session: authData.session };
+    } catch (error) {
       console.error('Registration error:', error);
       throw error;
     }
-
-    // Create user profile
-    if (data.user) {
-      console.log('Attempting to create user profile for:', data.user.id);
-      
-      const { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          user_id: data.user.id,
-          email: data.user.email,
-          first_name: firstName,
-          last_name: lastName,
-          role: 'user',
-          terms_accepted: termsAccepted
-        })
-        .select()
-        .single();
-
-      console.log('Profile creation result:', { profileData, profileError });
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError);
-        if (profileError.code === 'PGRST301') {
-          console.error('This appears to be a permissions error. Check RLS policies.');
-        }
-        throw profileError;
-      }
-
-      console.log('User profile created successfully:', profileData);
-    }
-
-    return { user: data.user, session: data.session };
-  }
+  };
 
   const logout = async () => {
     console.log('Logout function called')

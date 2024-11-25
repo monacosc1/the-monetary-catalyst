@@ -15,92 +15,52 @@ export async function GET(request: Request) {
 
     if (userError) {
       console.error('Error fetching user:', userError)
+      return NextResponse.redirect(`${requestUrl.origin}/login?error=auth`)
     }
 
     if (user) {
       console.log('User data retrieved:', user)
+      console.log('User metadata:', user.user_metadata) // Log full metadata for debugging
+      
+      try {
+        // Extract name from Google OAuth metadata
+        const firstName = user.user_metadata.given_name || 
+                         user.user_metadata.first_name ||
+                         (user.user_metadata.full_name ? user.user_metadata.full_name.split(' ')[0] : null)
 
-      // Check if user profile already exists
-      const { data: existingProfile, error: fetchError } = await supabase
-        .from('user_profiles')
-        .select()
-        .eq('user_id', user.id)
-        .single()
+        const lastName = user.user_metadata.family_name || 
+                        user.user_metadata.last_name ||
+                        (user.user_metadata.full_name ? 
+                          user.user_metadata.full_name.split(' ').slice(1).join(' ') : 
+                          null)
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('Error fetching existing profile:', fetchError)
-      }
+        console.log('Extracted names:', { firstName, lastName })
 
-      if (!existingProfile) {
-        console.log('User profile not found, creating new profile')
-        // Extract name from user metadata
-        const fullName = user.user_metadata.full_name || ''
-        const [firstName, ...lastNameParts] = fullName.split(' ')
-        const lastName = lastNameParts.join(' ')
-
-        // Insert into user_profiles table
-        const { data: insertedProfile, error: insertError } = await supabase
-          .from('user_profiles')
-          .insert({
+        // Call backend to handle user profile creation and welcome email
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-callback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             user_id: user.id,
             email: user.email,
-            first_name: firstName || null,
-            last_name: lastName || null,
-            role: 'user',
+            first_name: firstName,
+            last_name: lastName,
             google_id: user.app_metadata.provider === 'google' ? user.id : null,
+            raw_user_metadata: user.user_metadata // Send full metadata for debugging
           })
+        });
 
-        if (insertError) {
-          console.error('Error inserting user profile:', insertError)
-        } else {
-          console.log('New user profile created:', insertedProfile)
-
-          if (!insertError) {
-            console.log('Attempting to send welcome email via callback route');
-            try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/welcome-email`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  email: user.email,
-                  name: `${firstName} ${lastName}`.trim()
-                })
-              });
-
-              console.log('Welcome email API response:', await response.json());
-
-              if (!response.ok) {
-                throw new Error('Failed to trigger welcome email');
-              }
-            } catch (emailError) {
-              console.error('Failed to send welcome email:', emailError);
-            }
-          }
+        if (!response.ok) {
+          console.error('Backend processing failed:', await response.text());
         }
-      } else {
-        console.log('Existing user profile found:', existingProfile)
-        // Update the profile if needed
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update({
-            email: user.email,
-            // Update other fields if necessary
-          })
-          .eq('user_id', user.id)
-
-        if (updateError) {
-          console.error('Error updating user profile:', updateError)
-        } else {
-          console.log('User profile updated')
-        }
+      } catch (error) {
+        console.error('Error processing Google callback:', error);
       }
-    } else {
-      console.log('No user data available')
     }
   }
 
-  // URL to redirect to after sign in process completes
+  // Always redirect to pricing page after sign in
   return NextResponse.redirect(requestUrl.origin + '/pricing')
 }
