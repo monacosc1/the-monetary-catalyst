@@ -54,6 +54,30 @@ export async function GET(request: Request) {
           console.error('Error inserting user profile:', insertError)
         } else {
           console.log('New user profile created:', insertedProfile)
+
+          if (!insertError) {
+            console.log('Attempting to send welcome email via callback route');
+            try {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/welcome-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  email: user.email,
+                  name: `${firstName} ${lastName}`.trim()
+                })
+              });
+
+              console.log('Welcome email API response:', await response.json());
+
+              if (!response.ok) {
+                throw new Error('Failed to trigger welcome email');
+              }
+            } catch (emailError) {
+              console.error('Failed to send welcome email:', emailError);
+            }
+          }
         }
       } else {
         console.log('Existing user profile found:', existingProfile)

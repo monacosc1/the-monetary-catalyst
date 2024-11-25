@@ -26,14 +26,16 @@ class EmailService {
 
   // Transactional emails
   async sendWelcomeEmail(userEmail: string, userName: string) {
+    console.log('EmailService: Sending welcome email to:', userEmail);
     const msg = {
       to: userEmail,
       from: process.env.FROM_EMAIL!,
-      templateId: 'd-16a5708cb9ed4700b8699efe181eda18', // Replace with your actual template ID
+      templateId: 'd-16a5708cb9ed4700b8699efe181eda18',
       dynamicTemplateData: {
         name: userName,
       },
     };
+    console.log('EmailService: Email payload:', msg);
     return sgMail.send(msg);
   }
 

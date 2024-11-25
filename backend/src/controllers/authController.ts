@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import supabase from '../config/supabase';
 import { signToken } from '../services/jwtService';
 import config from '../config/environment';
+import { emailService } from '../services/emailService';
 
 // Register User
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -44,6 +45,21 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       console.error('Supabase error:', error);
       res.status(500).json({ message: 'Error creating user', error: error.message });
       return;
+    }
+
+    // After successful user creation
+    if (newUser) {
+      console.log('Attempting to send welcome email to:', newUser.email);
+      try {
+        await emailService.sendWelcomeEmail(
+          newUser.email,
+          `${newUser.first_name} ${newUser.last_name}`.trim()
+        );
+        console.log('Welcome email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't throw error here - we still want to complete registration
+      }
     }
 
     // Generate JWT token

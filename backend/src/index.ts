@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import paymentRoutes from './routes/paymentRoutes';
 import contactRoutes from './routes/contactRoutes';
+import authRoutes from './routes/authRoutes';
 
 // Load environment variables from .env
 dotenv.config();
@@ -28,6 +29,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api', paymentRoutes);
 app.use(contactRoutes);
+app.use('/api/auth', authRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 5000;
