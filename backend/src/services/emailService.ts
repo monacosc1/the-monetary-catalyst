@@ -10,7 +10,10 @@ class EmailService {
   async sendContactFormEmail(name: string, email: string, message: string) {
     const msg = {
       to: 'support@themonetarycatalyst.com',
-      from: process.env.FROM_EMAIL!,
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
       subject: `New Contact Form Submission from ${name}`,
       text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
       html: `
@@ -29,10 +32,17 @@ class EmailService {
     console.log('EmailService: Sending welcome email to:', userEmail);
     const msg = {
       to: userEmail,
-      from: process.env.FROM_EMAIL!,
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
       templateId: 'd-16a5708cb9ed4700b8699efe181eda18',
       dynamicTemplateData: {
         name: firstName,
+      },
+      asm: {
+        groupId: 25811,
+        groupsToDisplay: [25811]
       },
     };
     console.log('EmailService: Email payload:', msg);
@@ -42,8 +52,11 @@ class EmailService {
   async sendSubscriptionConfirmation(userEmail: string, userName: string, planType: string) {
     const msg = {
       to: userEmail,
-      from: process.env.FROM_EMAIL!,
-      templateId: 'd-02338cf0d38c4263b39be0ed4677454d', // Your SendGrid template ID
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
+      templateId: 'd-02338cf0d38c4263b39be0ed4677454d',
       dynamicTemplateData: {
         name: userName,
         planType,
@@ -59,21 +72,22 @@ class EmailService {
     articleUrl: string;
     category: 'market-analysis' | 'investment-ideas';
   }) {
-    // Choose template based on category
     const templateId = articleData.category === 'market-analysis' 
       ? 'd-your-market-analysis-template-id'
       : 'd-your-investment-ideas-template-id';
 
     const msg = {
       to: subscribers.map(sub => sub.email),
-      from: process.env.FROM_EMAIL!,
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
       templateId: templateId,
       dynamicTemplateData: {
         title: articleData.title,
         excerpt: articleData.excerpt,
         featureImageUrl: articleData.featureImageUrl,
         articleUrl: articleData.articleUrl,
-        // You can add more dynamic data here
       },
     };
     return sgMail.send(msg);
