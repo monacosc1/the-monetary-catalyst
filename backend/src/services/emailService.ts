@@ -50,6 +50,7 @@ class EmailService {
   }
 
   async sendSubscriptionConfirmation(userEmail: string, userName: string, planType: string) {
+    console.log('EmailService: Sending subscription confirmation to:', userEmail);
     const msg = {
       to: userEmail,
       from: {
@@ -58,10 +59,15 @@ class EmailService {
       },
       templateId: 'd-02338cf0d38c4263b39be0ed4677454d',
       dynamicTemplateData: {
-        name: userName,
+        firstName: userName,
         planType,
       },
+      asm: {
+        groupId: 25811,
+        groupsToDisplay: [25811]
+      },
     };
+    console.log('EmailService: Email payload:', msg);
     return sgMail.send(msg);
   }
 
