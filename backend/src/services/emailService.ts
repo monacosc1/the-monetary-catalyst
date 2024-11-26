@@ -1,4 +1,16 @@
 import sgMail from '@sendgrid/mail';
+import crypto from 'crypto';
+
+// Define our own interface for SendGrid errors
+interface SendGridErrorResponse {
+  response?: {
+    body?: any;
+    statusCode?: number;
+    headers?: Record<string, any>;
+  };
+  code?: string;
+  message?: string;
+}
 
 class EmailService {
   constructor() {
@@ -96,6 +108,73 @@ class EmailService {
         articleUrl: articleData.articleUrl,
       },
     };
+    return sgMail.send(msg);
+  }
+
+  // Add this test method
+  async testSMTP() {
+    // Use the transactional key for this test
+    sgMail.setApiKey(process.env.SUPABASE_SMTP_KEY!);
+    
+    const msg = {
+      to: 'samonaco1@yahoo.com', // Your actual email
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
+      subject: 'SendGrid Domain Authentication Test',
+      text: 'This is a test email to verify SendGrid configuration',
+      html: '<strong>This is a test email to verify SendGrid configuration</strong>',
+    };
+
+    try {
+      const result = await sgMail.send(msg);
+      console.log('Test email sent successfully:', {
+        response: result[0].statusCode,
+        headers: result[0].headers,
+      });
+      return result;
+    } catch (error: unknown) {
+      console.error('SMTP test failed:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const sendGridError = error as SendGridErrorResponse;
+        console.error('Detailed error response:', {
+          body: sendGridError.response?.body,
+          statusCode: sendGridError.response?.statusCode,
+          headers: sendGridError.response?.headers,
+          code: sendGridError.code,
+          message: sendGridError.message
+        });
+      }
+      throw error;
+    }
+  }
+
+  async sendPasswordResetEmail(userEmail: string, recoveryLink: string) {
+    console.log('EmailService: Sending password reset email to:', userEmail);
+    
+    const msg = {
+      to: userEmail,
+      from: {
+        email: process.env.FROM_EMAIL!,
+        name: 'The Monetary Catalyst'
+      },
+      subject: 'Reset Your Password - The Monetary Catalyst',
+      html: `
+        <p>Hello,</p>
+        <p>Someone has requested a password reset for your account. If this was you, please click the link below to reset your password:</p>
+        <p><a href="${recoveryLink}">Reset Password</a></p>
+        <p>If you didn't request this change, you can safely ignore this email.</p>
+        <p>This link will expire in 30 minutes.</p>
+        <p>Best regards,<br>The Monetary Catalyst Team</p>
+      `,
+      asm: {
+        groupId: 25811,
+        groupsToDisplay: [25811]
+      },
+    };
+    
+    console.log('EmailService: Email payload:', msg);
     return sgMail.send(msg);
   }
 }

@@ -3,29 +3,52 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
-import { supabase } from '@/utils/supabase'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMessage('')
     setError('')
+    setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
+      console.log('Attempting password reset for:', email)
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email,
+          redirectTo: `${window.location.origin}/reset-password`
+        })
+      });
 
-      if (error) throw error
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send reset instructions');
+      }
 
       setMessage('Please check your email for password reset instructions. The link will expire in 30 minutes.')
     } catch (error: any) {
-      setError(error.message || 'An error occurred. Please try again.')
+      console.error('Full error details:', {
+        message: error.message,
+        status: error?.status,
+        name: error?.name,
+        stack: error?.stack,
+        code: error?.code
+      });
+      setError(error.message || 'An error occurred while sending the reset instructions. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -54,17 +77,18 @@ export default function ForgotPasswordPage() {
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
               />
             </div>
 
             {message && (
-              <div className="text-sm text-green-600">
+              <div className="text-sm text-green-600 bg-green-50 p-3 rounded">
                 {message}
               </div>
             )}
 
             {error && (
-              <div className="text-sm text-red-600">
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
                 {error}
               </div>
             )}
@@ -72,9 +96,10 @@ export default function ForgotPasswordPage() {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-accent1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-accent1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                disabled={isLoading}
               >
-                Send Reset Instructions
+                {isLoading ? 'Sending...' : 'Send Reset Instructions'}
               </button>
             </div>
           </form>

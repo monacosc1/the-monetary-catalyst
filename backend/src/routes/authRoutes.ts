@@ -1,11 +1,12 @@
 // src/routes/authRoutes.ts
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { registerUser, loginUser, getUserProfile } from '../controllers/authController';
 import authMiddleware from '../middleware/authMiddleware';
 import { RequestHandler } from 'express';
-import express from 'express';
 import { emailService } from '../services/emailService';
 import supabase from '../config/supabase';
+import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 // Create a router instance
 const router = Router();
@@ -135,4 +136,112 @@ router.post('/google-callback', async (req, res) => {
   }
 });
 
+// Define the handler separately with proper types
+const handleResetPassword: RequestHandler = async (req, res) => {
+  const { email, redirectTo } = req.body;
+  
+  try {
+    console.log('Starting password reset process for:', email);
+    
+    // First check if the user exists in Supabase
+    const { data: user, error: userError } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (userError) {
+      console.log('User not found:', email);
+      // Still return success to prevent email enumeration
+      res.json({ success: true });
+      return;
+    }
+
+    // Generate a secure token that will be validated by Supabase
+    const { data, error: tokenError } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email: email,
+      options: {
+        redirectTo
+      }
+    });
+
+    if (tokenError || !data) {
+      console.error('Error generating recovery token:', tokenError);
+      throw tokenError;
+    }
+
+    // Safely access the action_link with null check
+    if (!data.properties?.action_link) {
+      throw new Error('Failed to generate recovery link');
+    }
+
+    // Send the email with our working SendGrid setup
+    await emailService.sendPasswordResetEmail(email, data.properties.action_link);
+    
+    console.log('Password reset email sent successfully');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Unexpected error during password reset:', error);
+    res.status(500).json({ 
+      error: 'Failed to send reset password email',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// Define the SMTP test handler separately
+const handleTestSMTP: RequestHandler = async (req, res) => {
+  try {
+    await emailService.testSMTP();
+    res.json({ success: true });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    res.status(500).json({ error: errorMessage });
+  }
+};
+
+// Use the handlers with router.post
+router.post('/reset-password', handleResetPassword);
+router.post('/test-smtp', handleTestSMTP);
+
+// Add this new test endpoint
+router.post('/test-direct-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Use the emailService to send a direct test
+    await emailService.testSMTP();
+    
+    res.json({ success: true, message: 'Test email sent successfully' });
+  } catch (error) {
+    console.error('Direct email test failed:', error);
+    res.status(500).json({ 
+      error: 'Failed to send test email',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Add this new test endpoint
+router.post('/test-sendgrid', async (req, res) => {
+  try {
+    console.log('Starting SendGrid test...');
+    const result = await emailService.testSMTP();
+    console.log('SendGrid test completed successfully');
+    res.json({ 
+      success: true, 
+      message: 'Test email sent successfully',
+      details: result
+    });
+  } catch (error) {
+    console.error('SendGrid test failed:', error);
+    res.status(500).json({ 
+      error: 'Failed to send test email',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
+
