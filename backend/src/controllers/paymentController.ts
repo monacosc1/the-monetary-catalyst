@@ -208,7 +208,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
           try {
             await emailService.sendSubscriptionConfirmation(
               customer.email || '',
-              customer.name || customer.email?.split('@')[0] || 'Customer',
+              customer.name || null,
               subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
               'professional'
             );
