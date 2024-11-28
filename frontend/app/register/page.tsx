@@ -40,13 +40,15 @@ export default function RegisterPage() {
       console.log('Attempting to log in after registration')
       await loginAfterRegister(email, password)
       console.log('Login after registration successful')
+      router.push('/pricing')
     } catch (error: any) {
       console.error('Error during registration or login:', error)
-      setError(error.message || 'An error occurred during registration. Please try again.')
-    } finally {
-      console.log('Attempting to redirect to pricing page')
-      router.push('/pricing')
-      console.log('Redirect initiated')
+      if (error.message.includes('already been registered')) {
+        setError('An account with this email already exists. Please try logging in instead.')
+      } else {
+        setError(error.message || 'An error occurred during registration. Please try again.')
+      }
+      return
     }
   }
 
@@ -71,6 +73,19 @@ export default function RegisterPage() {
               Get started today, it's free and easy.
             </p>
             
+            {error && (
+              <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+                {error}
+                {error.includes('already exists') && (
+                  <div className="mt-2">
+                    <Link href="/login" className="text-primary hover:text-accent1 font-medium">
+                      Click here to log in
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleGoogleSignIn}
