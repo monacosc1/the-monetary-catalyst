@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import supabase from '../config/supabase';
+import { emailService } from '../services/emailService';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -194,6 +195,32 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
               console.error('Error updating subscription with payment ID:', updateError);
             }
           }
+
+          // Get user email from Stripe customer
+          const customer = await stripe.customers.retrieve(session.customer as string) as Stripe.Customer;
+          
+          // Check if customer is not deleted
+          if (customer.deleted) {
+            throw new Error('Customer has been deleted');
+          }
+
+          // Send confirmation email with error handling
+          try {
+            await emailService.sendSubscriptionConfirmation(
+              customer.email || '',
+              customer.name || customer.email?.split('@')[0] || 'Customer',
+              subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+              'professional'
+            );
+            console.log('Subscription confirmation email sent successfully');
+          } catch (emailError) {
+            // Log the error but don't fail the subscription process
+            console.error('Failed to send subscription confirmation email:', emailError);
+          }
+
+          // Continue with the success response
+          res.json({ received: true });
+
         } catch (error) {
           console.error('Error processing payment record:', error);
           // Log error but don't throw to ensure webhook completes

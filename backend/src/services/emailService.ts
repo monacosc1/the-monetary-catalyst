@@ -40,7 +40,7 @@ class EmailService {
   }
 
   // Transactional emails
-  async sendWelcomeEmail(userEmail: string, firstName: string) {
+  async sendWelcomeEmail(userEmail: string, firstName: string | null) {
     console.log('EmailService: Sending welcome email to:', userEmail);
     const msg = {
       to: userEmail,
@@ -50,7 +50,7 @@ class EmailService {
       },
       templateId: 'd-16a5708cb9ed4700b8699efe181eda18',
       dynamicTemplateData: {
-        name: firstName,
+        firstName: firstName || '',
       },
       asm: {
         groupId: 25811,
@@ -61,7 +61,12 @@ class EmailService {
     return sgMail.send(msg);
   }
 
-  async sendSubscriptionConfirmation(userEmail: string, userName: string, planType: string) {
+  async sendSubscriptionConfirmation(
+    userEmail: string, 
+    firstName: string | null,
+    planType: string,
+    subscriptionType: string = 'professional'
+  ) {
     console.log('EmailService: Sending subscription confirmation to:', userEmail);
     const msg = {
       to: userEmail,
@@ -71,8 +76,9 @@ class EmailService {
       },
       templateId: 'd-02338cf0d38c4263b39be0ed4677454d',
       dynamicTemplateData: {
-        firstName: userName,
-        planType,
+        firstName: firstName || '',
+        planType: planType,
+        subscriptionType: subscriptionType
       },
       asm: {
         groupId: 25811,
