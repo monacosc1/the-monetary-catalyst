@@ -1,4 +1,4 @@
-import sgMail from '@sendgrid/mail';
+import sgMail, { MailDataRequired, ClientResponse } from '@sendgrid/mail';
 import crypto from 'crypto';
 
 // Define our own interface for SendGrid errors
@@ -12,10 +12,38 @@ interface SendGridErrorResponse {
   message?: string;
 }
 
+// Add this interface to handle template-based emails
+interface TemplateMailData extends Omit<MailDataRequired, 'content'> {
+  templateId: string;
+  dynamicTemplateData?: Record<string, any>;
+}
+
 class EmailService {
   constructor() {
-    // Set API key for all email operations
+    // Set default API key for most email operations
     sgMail.setApiKey(process.env.SENDGRID_CONTACT_FORM_KEY!);
+    
+    // Enable automatic purging of bounces and blocks
+    this.configureBounceSettings();
+  }
+
+  private async configureBounceSettings() {
+    try {
+      await fetch('https://api.sendgrid.com/v3/mail_settings/bounce_purge', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${process.env.SENDGRID_CONTACT_FORM_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          enabled: true,
+          hard_bounces: 5, // Days to retain hard bounces
+          soft_bounces: 3  // Days to retain soft bounces
+        })
+      });
+    } catch (error) {
+      console.error('Failed to configure bounce settings:', error);
+    }
   }
 
   // Contact form emails
@@ -35,14 +63,45 @@ class EmailService {
         <p><strong>Message:</strong></p>
         <p>${message.replace(/\n/g, '<br>')}</p>
       `,
+      headers: {
+        'Precedence': 'bulk',
+        'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+        'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+        'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+        'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:contact-form:${Date.now()}`,
+        'List-ID': '<contact-form.themonetarycatalyst.com>',
+        'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+      }
     };
     return sgMail.send(msg);
+  }
+
+  // Add this method to the EmailService class
+  private getDelayForProvider(email: string): number {
+    const domain = email.split('@')[1].toLowerCase();
+    switch (domain) {
+      case 'yahoo.com':
+      case 'yahoo.co.uk':
+        return 2000; // 2 second delay
+      case 'outlook.com':
+      case 'hotmail.com':
+        return 1000; // 1 second delay
+      default:
+        return 0;
+    }
   }
 
   // Transactional emails
   async sendWelcomeEmail(userEmail: string, firstName: string | null) {
     console.log('EmailService: Sending welcome email to:', userEmail);
-    const msg = {
+    
+    // Add delay based on email provider
+    const delay = this.getDelayForProvider(userEmail);
+    if (delay > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    const msg: TemplateMailData = {
       to: userEmail,
       from: {
         email: process.env.FROM_EMAIL!,
@@ -56,37 +115,102 @@ class EmailService {
         groupId: 25811,
         groupsToDisplay: [25811]
       },
+      headers: {
+        'Precedence': 'bulk',
+        'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+        'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+        'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+        'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:welcome:${Date.now()}`,
+        'List-ID': '<welcome.themonetarycatalyst.com>',
+        'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+      }
     };
     console.log('EmailService: Email payload:', msg);
-    return sgMail.send(msg);
+    
+    try {
+      const result = await sgMail.send(msg as MailDataRequired);
+      
+      // Add logging for successful sends
+      console.log('Welcome email sent successfully:', {
+        to: userEmail,
+        messageId: result[0].headers['x-message-id'],
+        statusCode: result[0].statusCode
+      });
+      
+      return { success: true, result };
+    } catch (error) {
+      // Enhanced error logging
+      console.error('Failed to send welcome email:', {
+        to: userEmail,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Start the retry process in the background
+      this.retryEmail(msg)
+        .then(result => {
+          if (result) {
+            console.log('Retry successful for:', userEmail);
+          } else {
+            console.error('All retry attempts failed for:', userEmail);
+          }
+        })
+        .catch(retryError => {
+          console.error('Error in retry process:', retryError);
+        });
+      
+      return { 
+        success: false, 
+        error: 'Welcome email delivery delayed. It will be retried automatically.' 
+      };
+    }
   }
 
   async sendSubscriptionConfirmation(
     userEmail: string, 
-    firstName: string | null,
+    firstName: string | null, 
     planType: string,
     subscriptionType: string = 'professional'
   ) {
-    console.log('EmailService: Sending subscription confirmation to:', userEmail);
-    const msg = {
-      to: userEmail,
-      from: {
-        email: process.env.FROM_EMAIL!,
-        name: 'The Monetary Catalyst'
-      },
-      templateId: 'd-02338cf0d38c4263b39be0ed4677454d',
-      dynamicTemplateData: {
-        firstName: firstName || '',
-        planType: planType,
-        subscriptionType: subscriptionType
-      },
-      asm: {
-        groupId: 25811,
-        groupsToDisplay: [25811]
-      },
-    };
-    console.log('EmailService: Email payload:', msg);
-    return sgMail.send(msg);
+    try {
+      // Add rate limiting
+      const delay = this.getDelayForProvider(userEmail);
+      if (delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      const msg = {
+        to: userEmail,
+        from: {
+          email: process.env.FROM_EMAIL!,
+          name: 'The Monetary Catalyst'
+        },
+        templateId: 'd-02338cf0d38c4263b39be0ed4677454d',
+        dynamicTemplateData: {
+          firstName: firstName || '',
+          planType: planType,
+          subscriptionType: subscriptionType
+        },
+        asm: {
+          groupId: 25811,
+          groupsToDisplay: [25811]
+        },
+        headers: {
+          'Precedence': 'bulk',
+          'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+          'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+          'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+          'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:subscription:${Date.now()}`,
+          'List-ID': '<subscription.themonetarycatalyst.com>',
+          'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+        }
+      };
+      console.log('EmailService: Email payload:', msg);
+      return await sgMail.send(msg);
+    } catch (error) {
+      console.error('Failed to send subscription confirmation:', error);
+      return null;
+    }
   }
 
   async sendNewArticleNotification(subscribers: Array<{email: string, name: string}>, articleData: {
@@ -113,6 +237,15 @@ class EmailService {
         featureImageUrl: articleData.featureImageUrl,
         articleUrl: articleData.articleUrl,
       },
+      headers: {
+        'Precedence': 'bulk',
+        'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+        'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+        'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+        'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:article-notification:${Date.now()}`,
+        'List-ID': '<notifications.themonetarycatalyst.com>',
+        'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+      }
     };
     return sgMail.send(msg);
   }
@@ -159,6 +292,10 @@ class EmailService {
   async sendPasswordResetEmail(userEmail: string, recoveryLink: string) {
     console.log('EmailService: Sending password reset email to:', userEmail);
     
+    // Create a new SendGrid instance with SMTP key specifically for password reset
+    const resetMailer = require('@sendgrid/mail');
+    resetMailer.setApiKey(process.env.SUPABASE_SMTP_KEY!);
+    
     const msg = {
       to: userEmail,
       from: {
@@ -178,10 +315,43 @@ class EmailService {
         groupId: 25811,
         groupsToDisplay: [25811]
       },
+      headers: {
+        'Precedence': 'bulk',
+        'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+        'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+        'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+        'Feedback-ID': `${process.env.SUPABASE_SMTP_KEY}:password-reset:${Date.now()}`,
+        'List-ID': '<password-reset.themonetarycatalyst.com>',
+        'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+      }
     };
     
-    console.log('EmailService: Email payload:', msg);
-    return sgMail.send(msg);
+    return resetMailer.send(msg);
+  }
+
+  private async retryEmail(
+    msg: TemplateMailData, 
+    retryCount = 0, 
+    maxRetries = 3
+  ): Promise<[ClientResponse, {}] | null> {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300000)); // 5 minute delay
+      return await sgMail.send(msg as MailDataRequired);
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        console.log(`Retry attempt ${retryCount + 1} for email to ${msg.to}`);
+        return this.retryEmail(msg, retryCount + 1);
+      }
+      console.error(`Failed to send email after ${maxRetries} attempts:`, error);
+      return null;
+    }
+  }
+
+  // Update the validateEmail method
+  async validateEmail(email: string) {
+    // Basic regex validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 }
 

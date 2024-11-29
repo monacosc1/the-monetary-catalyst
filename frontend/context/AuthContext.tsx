@@ -51,7 +51,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Starting registration process:', { email, firstName, lastName, termsAccepted });
     
     try {
-      // Call backend registration endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
@@ -69,7 +68,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
+        if (data.error === 'Please provide a valid email address') {
+          throw new Error('This email address appears to be invalid. Please check and try again.');
+        }
+        throw new Error(data.message || data.error || 'Registration failed');
       }
 
       // After successful registration, sign in with Supabase

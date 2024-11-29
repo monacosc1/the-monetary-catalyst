@@ -24,14 +24,20 @@ export default function SuccessPage() {
         }
 
         const sessionId = searchParams.get('session_id')
-        const response = await fetch(
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Verification timeout')), 15000)
+        );
+
+        const verificationPromise = fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/verify-session?session_id=${sessionId}`,
           {
             headers: {
               'Authorization': `Bearer ${session.access_token}`
             }
           }
-        )
+        );
+
+        const response = (await Promise.race([verificationPromise, timeoutPromise])) as Response;
         const data = await response.json()
         
         if (data.success) {

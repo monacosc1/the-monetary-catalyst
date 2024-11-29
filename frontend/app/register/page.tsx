@@ -18,37 +18,39 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Submit button clicked')
+    setError('')
+    setIsSubmitting(true)
 
-    if (!agreeTerms) {
-      setError('You must agree to the Terms & Conditions to create an account.')
-      return
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
-    }
-    
-    console.log('Attempting to register user')
     try {
+      if (!agreeTerms) {
+        setError('You must agree to the Terms & Conditions to create an account.')
+        return
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.')
+        return
+      }
+      
       const { user, session } = await register(email, password, firstName, lastName, agreeTerms)
       console.log('Registration successful', user, session)
 
-      console.log('Attempting to log in after registration')
       await loginAfterRegister(email, password)
-      console.log('Login after registration successful')
       router.push('/pricing')
     } catch (error: any) {
       console.error('Error during registration or login:', error)
       if (error.message.includes('already been registered')) {
         setError('An account with this email already exists. Please try logging in instead.')
+      } else if (error.message.includes('invalid')) {
+        setError(error.message)
       } else {
-        setError(error.message || 'An error occurred during registration. Please try again.')
+        setError('An error occurred during registration. Please try again.')
       }
-      return
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -219,9 +221,9 @@ export default function RegisterPage() {
                   className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
                     agreeTerms ? 'bg-primary hover:bg-accent1' : 'bg-gray-300 cursor-not-allowed'
                   } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary`}
-                  disabled={!agreeTerms}
+                  disabled={!agreeTerms || isSubmitting}
                 >
-                  Create Account
+                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </button>
               </div>
             </form>

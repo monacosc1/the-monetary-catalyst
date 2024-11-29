@@ -9,13 +9,21 @@ import config from '../config/environment';
 import { emailService } from '../services/emailService';
 
 // Register User
-export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
   try {
     const { email, password, first_name, last_name, termsAccepted } = req.body;
 
     if (!termsAccepted) {
       res.status(400).json({ message: 'You must accept the Terms & Conditions to create an account.' });
       return;
+    }
+
+    // Add email validation
+    const isValidEmail = await emailService.validateEmail(email);
+    if (!isValidEmail) {
+      return res.status(400).json({ 
+        error: 'Please provide a valid email address' 
+      });
     }
 
     // Create user in Supabase Auth
@@ -57,17 +65,12 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Send welcome email
-    try {
-      await emailService.sendWelcomeEmail(
-        email,
-        first_name
-      );
-      console.log('Welcome email sent successfully');
-    } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
-      // Continue with registration even if email fails
-    }
+    // Fire and forget the welcome email
+    emailService.sendWelcomeEmail(
+      email,
+      first_name
+    )
+      .catch(error => console.error('Welcome email error:', error));
 
     res.status(201).json({
       message: 'User registered successfully',
