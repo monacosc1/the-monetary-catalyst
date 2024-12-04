@@ -196,6 +196,37 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
           }
         }
         break;
+
+      case 'customer.subscription.deleted':
+        try {
+          const subscription = event.data.object as Stripe.Subscription;
+          console.log('Received subscription.deleted webhook:', {
+            subscriptionId: subscription.id,
+            customerId: subscription.customer,
+            endDate: new Date(subscription.current_period_end * 1000)
+          });
+          
+          // Update subscription status in Supabase
+          const { error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              status: 'expired',
+              payment_status: 'cancelled',
+              updated_at: new Date().toISOString(),
+              end_date: new Date(subscription.current_period_end * 1000).toISOString()
+            })
+            .eq('stripe_subscription_id', subscription.id);
+
+          if (updateError) {
+            console.error('Error updating subscription status:', updateError);
+            throw new Error('Failed to update subscription status');
+          }
+
+          console.log('Successfully marked subscription as expired:', subscription.id);
+        } catch (error) {
+          console.error('Error processing subscription.deleted webhook:', error);
+        }
+        break;
     }
   } catch (err) {
     if (!res.headersSent) {
