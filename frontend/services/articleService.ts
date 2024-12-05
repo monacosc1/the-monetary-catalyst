@@ -250,6 +250,164 @@ const articleService = {
 
     const data = await response.json();
     return data.data.slice(0, 5);
+  },
+
+  async getArticleById(id: number) {
+    const url = `${STRAPI_URL}/api/articles/${id}?` + 
+      new URLSearchParams({
+        'populate': '*'  // This will populate all first-level relations
+      });
+
+    console.log('Fetching article with URL:', url);
+
+    try {
+      const response = await fetch(url, {
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Strapi response error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch article: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Article data received:', {
+        fullData: data,
+        articleData: data.data,
+        content: data.data?.attributes?.content,
+        featureImage: data.data?.attributes?.feature_image_url,
+        articleImages: data.data?.attributes?.article_images
+      });
+
+      if (!data.data) {
+        throw new Error('Article not found');
+      }
+
+      // Transform the data to match the expected format
+      const article = data.data.attributes;
+      return {
+        id: data.data.id,
+        title: article.title,
+        content: article.content || [],
+        author: article.author,
+        publish_date: article.publish_date,
+        feature_image_url: article.feature_image_url,
+        article_images: article.article_images,
+      };
+    } catch (error) {
+      console.error('Error fetching article:', error);
+      throw error;
+    }
+  },
+
+  // Add this temporary debug method
+  async getAllArticleIds() {
+    const url = `${STRAPI_URL}/api/articles?` + 
+      new URLSearchParams({
+        'fields[0]': 'id',
+        'fields[1]': 'title',
+        'pagination[pageSize]': '100'
+      });
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('All articles:', data.data.map((article: any) => ({
+        id: article.id,
+        title: article.title
+      })));
+      return data;
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+      throw error;
+    }
+  },
+
+  // Add this new method specifically for sample articles
+  async getSampleArticleById(id: number) {
+    const url = `${STRAPI_URL}/api/articles?` + 
+      new URLSearchParams({
+        'filters[id][$eq]': id.toString(),
+        'populate': '*'
+      });
+
+    console.log('1. Starting fetch for sample article:', {
+      id,
+      url
+    });
+
+    try {
+      const response = await fetch(url, {
+        cache: 'no-store'
+      });
+      
+      console.log('2. Response status:', {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('3. Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Failed to fetch sample article: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('4. Raw Response Data:', {
+        fullData: data,
+        hasData: !!data.data,
+        dataLength: data.data?.length,
+        firstItem: data.data?.[0]
+      });
+      
+      if (!data.data?.[0]) {
+        console.error('5. No article found in response');
+        throw new Error('Sample article not found');
+      }
+
+      // The article data is directly in data.data[0], not in attributes
+      const article = data.data[0];
+      console.log('6. Article data:', {
+        article,
+        availableFields: Object.keys(article || {})
+      });
+
+      // Transform the data to match the expected format
+      const transformedArticle = {
+        id: article.id,
+        title: article.title,
+        content: article.content || [],
+        author: article.author,
+        publish_date: article.publish_date,
+        feature_image_url: article.feature_image_url,
+        article_images: article.article_images,
+      };
+
+      console.log('7. Transformed article:', transformedArticle);
+      return transformedArticle;
+
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('8. Error in getSampleArticleById:', {
+          error: error.toString(),
+          errorMessage: error.message,
+          errorStack: error.stack
+        });
+      } else {
+        console.error('8. Unknown error in getSampleArticleById:', error);
+      }
+      throw error;
+    }
   }
 };
 
