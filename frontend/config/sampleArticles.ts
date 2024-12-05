@@ -1,8 +1,8 @@
 export const SAMPLE_ARTICLES = {
   marketAnalysis: {
-    id: 7,
-    title: "Fiscal Policy is a Mess",
-    slug: "fiscal-policy-is-a-mess"
+    id: 11,
+    title: "Monetary Policy Strikes Again",
+    slug: "monetary-policy-strikes-again"
   },
   investmentIdeas: {
     id: 13,
