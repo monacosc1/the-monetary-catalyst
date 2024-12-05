@@ -169,7 +169,7 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-600">End Date</label>
+              <label className="block text-sm font-medium text-gray-600">Pay Period End Date</label>
               <div className="mt-1 text-gray-900">
                 {formatDate(subscription?.end_date || null)}
               </div>
