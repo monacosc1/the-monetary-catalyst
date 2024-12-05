@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import DotPattern from '@/components/DotPattern'
 import { useAuth } from '@/context/AuthContext'
+import { BarChart2, Lightbulb } from 'lucide-react'
 
 export default function Home() {
   const { isLoggedIn } = useAuth()
@@ -44,19 +45,54 @@ export default function Home() {
       <main className="flex-grow bg-white">
         <div className="text-content">
           {/* Latest Analysis Section */}
-          <section className="py-16 px-4">
+          <section className="py-16 px-4 bg-white">
             <div className="container mx-auto">
-              <h2 className="text-3xl font-bold mb-8 text-center">Latest Insights</h2>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+              <h2 className="text-4xl font-bold mb-8 text-center">Latest Insights</h2>
+              <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                {/* Market Analysis Card */}
+                <div className="bg-white rounded-lg p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                  <BarChart2 className="h-16 w-16 mb-6 text-primary" />
                   <h3 className="text-2xl font-bold mb-4">Market Analysis</h3>
-                  <p className="mb-4">Stay ahead of market trends with our expert analysis and insights.</p>
-                  <Link href="/research/market-analysis" className="text-primary hover:text-accent1 font-semibold">Read More →</Link>
+                  <p className="text-gray-600 mb-6 text-lg">
+                    Stay ahead of market trends with our expert analysis and insights. Our team provides in-depth coverage of economic indicators, market movements, and policy impacts.
+                  </p>
+                  <Link 
+                    href="/research/market-analysis" 
+                    className="inline-flex items-center text-primary hover:text-accent1 font-semibold group"
+                  >
+                    Read More 
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" 
+                      viewBox="0 0 20 20" 
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
                 </div>
-                <div className="bg-gray-100 p-6 rounded-lg shadow-md">
+
+                {/* Investment Ideas Card */}
+                <div className="bg-white rounded-lg p-8 shadow-xl border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
+                  <Lightbulb className="h-16 w-16 mb-6 text-primary" />
                   <h3 className="text-2xl font-bold mb-4">Investment Ideas</h3>
-                  <p className="mb-4">Discover potential opportunities with our curated investment ideas.</p>
-                  <Link href="/research/investment-ideas" className="text-primary hover:text-accent1 font-semibold">Explore Ideas →</Link>
+                  <p className="text-gray-600 mb-6 text-lg">
+                    Discover potential opportunities with our curated investment ideas. Get actionable insights and detailed analysis to inform your investment decisions.
+                  </p>
+                  <Link 
+                    href="/research/investment-ideas" 
+                    className="inline-flex items-center text-primary hover:text-accent1 font-semibold group"
+                  >
+                    Explore Ideas 
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" 
+                      viewBox="0 0 20 20" 
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </Link>
                 </div>
               </div>
             </div>
