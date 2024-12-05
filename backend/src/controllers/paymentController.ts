@@ -227,6 +227,76 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
           console.error('Error processing subscription.deleted webhook:', error);
         }
         break;
+
+      case 'invoice.payment_succeeded':
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          
+          // Only process if this is a subscription invoice
+          if (invoice.subscription) {
+            console.log('Processing subscription invoice payment:', {
+              subscriptionId: invoice.subscription,
+              customerId: invoice.customer,
+              amount: invoice.amount_paid
+            });
+
+            // Get subscription details from Stripe
+            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+            
+            // Find the subscription in Supabase
+            const { data: supabaseSubscription, error: subError } = await supabase
+              .from('subscriptions')
+              .select('id, user_id')
+              .eq('stripe_subscription_id', invoice.subscription)
+              .single();
+
+            if (subError) {
+              console.error('Error finding subscription:', subError);
+              throw new Error('Failed to find subscription');
+            }
+
+            // Create payment record
+            const { error: paymentError } = await supabase
+              .from('payments')
+              .insert({
+                user_id: supabaseSubscription.user_id,
+                subscription_id: supabaseSubscription.id,
+                amount: invoice.amount_paid,
+                date: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                status: 'successful',
+                stripe_payment_id: invoice.payment_intent as string,
+                stripe_invoice_id: invoice.id,
+                stripe_payment_status: invoice.status
+              });
+
+            if (paymentError) {
+              console.error('Error creating payment record:', paymentError);
+              throw new Error('Failed to create payment record');
+            }
+
+            // Update subscription end date
+            const { error: updateError } = await supabase
+              .from('subscriptions')
+              .update({
+                end_date: new Date(subscription.current_period_end * 1000).toISOString(),
+                updated_at: new Date().toISOString(),
+                last_payment_date: new Date().toISOString()
+              })
+              .eq('stripe_subscription_id', invoice.subscription);
+
+            if (updateError) {
+              console.error('Error updating subscription:', updateError);
+              throw new Error('Failed to update subscription');
+            }
+
+            console.log('Successfully processed subscription payment');
+          }
+        } catch (error) {
+          console.error('Error processing invoice.payment_succeeded:', error);
+          // Don't throw here - we want to send 200 response to Stripe
+        }
+        break;
     }
   } catch (err) {
     if (!res.headersSent) {
