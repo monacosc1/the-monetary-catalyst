@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { formatPublishDate } from '@/utils/dateFormatters';
 import articleService from '@/services/articleService';
 import ArticleImage from './ArticleImage';
+import Link from 'next/link';
 
 interface SampleArticleDisplayProps {
   articleId: number;
@@ -157,6 +158,16 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
             {renderContent(section)}
           </div>
         ))}
+      </div>
+
+      {/* Back Button */}
+      <div className="mt-8 text-center">
+        <Link 
+          href="/samples"
+          className="inline-block bg-primary text-white px-4 py-2 rounded hover:bg-accent1 transition-colors"
+        >
+          ← Back to Samples
+        </Link>
       </div>
     </div>
   );
