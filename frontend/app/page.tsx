@@ -98,12 +98,14 @@ export default function Home() {
               <DotPattern />
               <div className="container mx-auto text-center cta-content relative z-10">
                 <h2 className="text-3xl font-bold mb-4">Not Convinced?</h2>
-                <p className="text-xl mb-8">Create a FREE account to receive our monthly newsletter & sample premium content.</p>
+                <p className="text-xl mb-8">
+                  Check out samples of our premium content & create a FREE account to receive our monthly newsletter.
+                </p>
                 <Link 
-                  href="/register" 
+                  href="/samples" 
                   className="btn btn-primary"
                 >
-                  Register Now
+                  View Samples
                 </Link>
               </div>
             </section>
