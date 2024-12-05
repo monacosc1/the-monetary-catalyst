@@ -363,11 +363,13 @@ const articleService = {
       }
 
       const data = await response.json();
-      console.log('4. Raw Response Data:', {
-        fullData: data,
-        hasData: !!data.data,
-        dataLength: data.data?.length,
-        firstItem: data.data?.[0]
+      console.log('Sample Article Raw Data:', {
+        content: data.data[0].content,
+        contentStructure: data.data[0].content.map((item: any) => ({
+          type: item.type,
+          hasChildren: !!item.children,
+          childrenTypes: item.children?.map((c: any) => c.type)
+        }))
       });
       
       if (!data.data?.[0]) {

@@ -10,17 +10,28 @@ interface ArticleImageProps {
 }
 
 export default function ArticleImage({ imageUrl, title, strapiUrl, className }: ArticleImageProps) {
-  console.log('ArticleImage received imageUrl:', JSON.stringify(imageUrl, null, 2));
+  console.log('ArticleImage debug:', {
+    original: imageUrl?.data?.attributes?.url,
+    cleaned: (imageUrl?.data?.attributes?.url || '').replace(strapiUrl, ''),
+    final: `${strapiUrl}${(imageUrl?.data?.attributes?.url || '').replace(strapiUrl, '')}`
+  });
   
-  const imageSource = imageUrl?.data?.attributes?.formats?.small?.url || 
-                     imageUrl?.data?.attributes?.url ||
-                     imageUrl?.url;
+  const imageSource = (imageUrl?.data?.attributes?.formats?.small?.url || 
+                      imageUrl?.data?.attributes?.url ||
+                      imageUrl?.url || '')
+                      .replace(strapiUrl, '');
   
   console.log('Resolved imageSource:', imageSource);
   
+  const fullImageUrl = imageSource.startsWith('http') 
+    ? imageSource 
+    : `${strapiUrl}${imageSource.startsWith('/') ? '' : '/'}${imageSource}`;
+
+  console.log('Full image URL:', fullImageUrl);
+  
   return (
     <Image
-      src={imageSource ? `${strapiUrl}${imageSource}` : "https://via.placeholder.com/300x200"}
+      src={fullImageUrl}
       alt={title || 'Article image'}
       width={300}
       height={200}

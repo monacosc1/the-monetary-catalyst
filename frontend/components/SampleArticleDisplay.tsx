@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { formatPublishDate } from '@/utils/dateFormatters';
 import articleService from '@/services/articleService';
+import ArticleImage from './ArticleImage';
 
 interface SampleArticleDisplayProps {
   articleId: number;
@@ -33,7 +34,11 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
   }, [articleId]);
 
   const renderContent = (section: any) => {
-    console.log('Rendering section:', section);
+    console.log('Rendering section details:', {
+      sectionType: section.type,
+      sectionChildren: section.children,
+      fullSection: section
+    });
 
     if (section.type === 'heading') {
       return (
@@ -47,6 +52,13 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
       return (
         <p className="mb-4 text-gray-800">
           {section.children.map((child: any, index: number) => {
+            console.log('Processing child in paragraph:', {
+              childType: child.type,
+              childUrl: child.url,
+              childText: child.text,
+              fullChild: child
+            });
+
             if (child.type === 'text') {
               return child.text;
             }
@@ -59,13 +71,44 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {child.children[0].text || 'Link'}
+                  {child.children[0]?.text || 'Link'}
                 </a>
               );
             }
             return null;
           })}
         </p>
+      );
+    }
+
+    if (section.type === 'image') {
+      console.log('Image section data:', {
+        fullSection: section,
+        imageData: section.image,
+        strapiUrl: process.env.NEXT_PUBLIC_STRAPI_URL,
+        imageUrl: section.image.url,
+        hasStrapi: section.image.url.includes(process.env.NEXT_PUBLIC_STRAPI_URL)
+      });
+      
+      const imageUrl = section.image.url.startsWith('http') 
+        ? section.image.url 
+        : `${process.env.NEXT_PUBLIC_STRAPI_URL}${section.image.url}`;
+      
+      return (
+        <div key={section.id} className="my-8">
+          <Image
+            src={imageUrl}
+            alt={section.caption || 'Article image'}
+            width={800}
+            height={400}
+            className="rounded-lg mx-auto"
+          />
+          {section.caption && (
+            <p className="text-sm text-gray-600 text-center mt-2">
+              {section.caption}
+            </p>
+          )}
+        </div>
       );
     }
 
@@ -94,14 +137,16 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
       
       {/* Feature Image */}
       {article.feature_image_url && (
-        <div className="mb-8">
-          <Image 
-            src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${article.feature_image_url.url}`}
-            alt={article.title}
-            width={800}
-            height={400}
-            className="rounded-lg"
-          />
+        <div className="mb-8 flex justify-center">
+          <div className="w-full max-w-4xl">
+            <Image 
+              src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${article.feature_image_url.url}`}
+              alt={article.title}
+              width={1200}
+              height={600}
+              className="w-full h-auto object-contain rounded-lg"
+            />
+          </div>
         </div>
       )}
 
