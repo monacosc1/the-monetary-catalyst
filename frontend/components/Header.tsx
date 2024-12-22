@@ -12,8 +12,10 @@ export default function Header() {
   const { isLoggedIn, logout } = useAuth()
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [isResearchDropdownOpen, setIsResearchDropdownOpen] = useState(false)
+  const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false)
   const accountDropdownRef = useRef<HTMLDivElement>(null)
   const researchDropdownRef = useRef<HTMLLIElement>(null)
+  const aboutDropdownRef = useRef<HTMLLIElement>(null)
 
   const handleLogout = async () => {
     console.log('Logout button clicked')
@@ -37,6 +39,9 @@ export default function Header() {
       }
       if (researchDropdownRef.current && !researchDropdownRef.current.contains(event.target as Node)) {
         setIsResearchDropdownOpen(false)
+      }
+      if (aboutDropdownRef.current && !aboutDropdownRef.current.contains(event.target as Node)) {
+        setIsAboutDropdownOpen(false)
       }
     }
 
@@ -69,14 +74,58 @@ export default function Header() {
         </div>
         <nav className="w-1/2 flex justify-center">
           <ul className="flex space-x-12">
-            <li><Link href="/about" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold">About</Link></li>
+            <li className="relative" ref={aboutDropdownRef}>
+              <div className="flex items-center">
+                <button
+                  onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
+                  className="flex items-center text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold"
+                >
+                  <span className="mr-1">About</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              {isAboutDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                  <Link 
+                    href="/about" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
+                    onClick={() => setIsAboutDropdownOpen(false)}
+                  >
+                    About Us
+                  </Link>
+                  <Link 
+                    href="/samples" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
+                    onClick={() => setIsAboutDropdownOpen(false)}
+                  >
+                    View Samples
+                  </Link>
+                  <Link 
+                    href="/terms" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
+                    onClick={() => setIsAboutDropdownOpen(false)}
+                  >
+                    Terms & Conditions
+                  </Link>
+                  <Link 
+                    href="/privacy" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
+                    onClick={() => setIsAboutDropdownOpen(false)}
+                  >
+                    Privacy Policy
+                  </Link>
+                </div>
+              )}
+            </li>
             <li className="relative" ref={researchDropdownRef}>
               <div className="flex items-center">
-                <Link href="/research" className="text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold mr-1">Research</Link>
                 <button
                   onClick={() => setIsResearchDropdownOpen(!isResearchDropdownOpen)}
-                  className="text-[#ffffff] hover:text-[#ffffff] transition-colors"
+                  className="flex items-center text-[#ffffff] hover:text-[#ffffff] transition-colors text-lg font-bold"
                 >
+                  <span className="mr-1">Research</span>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
@@ -85,15 +134,22 @@ export default function Header() {
               {isResearchDropdownOpen && (
                 <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
                   <Link 
+                    href="/research" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
+                    onClick={() => setIsResearchDropdownOpen(false)}
+                  >
+                    Research Overview
+                  </Link>
+                  <Link 
                     href="/research/market-analysis" 
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
                     onClick={() => setIsResearchDropdownOpen(false)}
                   >
                     Market Analysis
                   </Link>
                   <Link 
                     href="/research/investment-ideas" 
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:text-primary hover:bg-gray-100"
                     onClick={() => setIsResearchDropdownOpen(false)}
                   >
                     Investment Ideas
