@@ -28,11 +28,33 @@ export default function NewsletterForm({ source }: NewsletterFormProps) {
       setName('');
       setEmail('');
 
-      // Show success message
-      toast.success(response.message);
+      // Show success message with longer duration
+      toast.success(response.message, {
+        duration: 5000, // 5 seconds
+        position: 'top-center',
+        style: {
+          background: '#4CAF50',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '8px',
+        },
+      });
 
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to subscribe to newsletter');
+      // Show error message
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to subscribe to newsletter',
+        {
+          duration: 4000,
+          position: 'top-center',
+          style: {
+            background: '#f44336',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+        }
+      );
     } finally {
       setIsLoading(false);
     }
