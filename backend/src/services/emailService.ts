@@ -353,6 +353,70 @@ class EmailService {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
+
+  async sendNewsletterWelcomeEmail(email: string, name: string) {
+    try {
+      const msg = {
+        to: email,
+        from: {
+          email: process.env.FROM_EMAIL!,
+          name: 'The Monetary Catalyst'
+        },
+        templateId: 'd-4b16252ffd974f3fbc269ef5d651b786',
+        dynamicTemplateData: {
+          name: name,
+        },
+        asm: {
+          groupId: 26010,
+          groupsToDisplay: [26010]
+        },
+        headers: {
+          'Precedence': 'bulk',
+          'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+          'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+          'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+          'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:newsletter-welcome:${Date.now()}`,
+          'List-ID': '<newsletter.themonetarycatalyst.com>',
+          'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+        }
+      };
+      return await sgMail.send(msg);
+    } catch (error) {
+      console.error('Failed to send newsletter welcome email:', error);
+    }
+  }
+
+  async sendNewsletterWelcomeBackEmail(email: string, name: string) {
+    try {
+      const msg = {
+        to: email,
+        from: {
+          email: process.env.FROM_EMAIL!,
+          name: 'The Monetary Catalyst'
+        },
+        templateId: 'd-6c073fe03fe34de88d6e2e58582bcaec',
+        dynamicTemplateData: {
+          name: name,
+        },
+        asm: {
+          groupId: 26010,
+          groupsToDisplay: [26010]
+        },
+        headers: {
+          'Precedence': 'bulk',
+          'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
+          'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
+          'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
+          'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:newsletter-welcome-back:${Date.now()}`,
+          'List-ID': '<newsletter.themonetarycatalyst.com>',
+          'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+        }
+      };
+      return await sgMail.send(msg);
+    } catch (error) {
+      console.error('Failed to send newsletter welcome back email:', error);
+    }
+  }
 }
 
 export const emailService = new EmailService();

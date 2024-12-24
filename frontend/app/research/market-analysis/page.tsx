@@ -8,6 +8,7 @@ import ArticleImage from '@/components/ArticleImage';
 import SearchBar from '@/components/SearchBar';
 import { formatPublishDate } from '@/utils/dateFormatters';
 import { ArticlePreview } from '@/services/articleService';
+import NewsletterForm from '@/components/NewsletterForm';
 
 export default function MarketAnalysisPage() {
   const [articles, setArticles] = useState<ArticlePreview[]>([]);
@@ -108,16 +109,7 @@ export default function MarketAnalysisPage() {
             </div>
             
             <div className="md:w-1/3 space-y-8 md:sticky md:top-20 self-start">
-              <div className="bg-gray-100 p-6 rounded-lg">
-                <h2 className="text-2xl font-bold mb-4">Monthly Newsletter Sign Up</h2>
-                <form className="space-y-4">
-                  <input type="text" placeholder="Name" className="w-full p-2 border rounded" />
-                  <input type="email" placeholder="Email" className="w-full p-2 border rounded" />
-                  <button type="submit" className="w-full bg-primary text-white p-2 rounded hover:bg-accent1">
-                    Subscribe
-                  </button>
-                </form>
-              </div>
+              <NewsletterForm source="market-analysis" />
               
               <div className="bg-gray-100 p-6 rounded-lg">
                 <SearchBar onSearch={handleSearch} />

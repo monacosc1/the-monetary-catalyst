@@ -6,6 +6,8 @@ import cors from 'cors';
 import paymentRoutes from './routes/paymentRoutes';
 import contactRoutes from './routes/contactRoutes';
 import authRoutes from './routes/authRoutes';
+import newsletterRoutes from './routes/newsletterRoutes';
+import webhookRoutes from './routes/webhookRoutes';
 
 // Load environment variables from .env
 dotenv.config();
@@ -30,6 +32,8 @@ app.use((req, res, next) => {
 app.use('/api', paymentRoutes);
 app.use(contactRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api', newsletterRoutes);
+app.use('/api', webhookRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 5000;
