@@ -64,8 +64,8 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
           quantity: 1,
         },
       ],
-      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+      success_url: 'https://themonetarycatalyst.com/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://themonetarycatalyst.com/pricing',
       client_reference_id: userId,
       metadata: {
         userId: userId
