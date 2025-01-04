@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
 import { useAuth } from '@/context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
-import { supabase } from '@/utils/supabase'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -40,14 +39,16 @@ export default function RegisterPage() {
 
       await loginAfterRegister(email, password)
       router.push('/pricing')
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error during registration or login:', error)
-      if (error.message.includes('already been registered')) {
-        setError('An account with this email already exists. Please try logging in instead.')
-      } else if (error.message.includes('invalid')) {
-        setError(error.message)
-      } else {
-        setError('An error occurred during registration. Please try again.')
+      if (error instanceof Error) {
+        if (error.message.includes('already been registered')) {
+          setError('An account with this email already exists. Please try logging in instead.')
+        } else if (error.message.includes('invalid')) {
+          setError(error.message)
+        } else {
+          setError('An error occurred during registration. Please try again.')
+        }
       }
     } finally {
       setIsSubmitting(false)
@@ -57,10 +58,14 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle()
-      // The user will be redirected to Google, then to our callback route
-    } catch (error: any) {
+      // The user will be redirected to Google for authentication
+    } catch (error: Error | unknown) {
       console.error('Google Sign-In error:', error)
-      setError(error.message || 'An error occurred during Google Sign-In')
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred during Google Sign-In'
+      )
     }
   }
 
@@ -72,7 +77,7 @@ export default function RegisterPage() {
           <div className="max-w-md mx-auto bg-white text-gray-900 rounded-lg shadow-xl p-8">
             <h2 className="text-3xl font-bold text-center mb-6">Create an account</h2>
             <p className="text-center text-sm text-gray-600 mb-8">
-              Get started today, it's free and easy.
+              Don&apos;t have an account? It&apos;s free and easy.
             </p>
             
             {error && (

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import articleService from '@/services/articleService';
-import DotPattern from '@/components/DotPattern';
 import ArticleImage from '@/components/ArticleImage';
 import SearchBar from '@/components/SearchBar';
 import { formatPublishDate } from '@/utils/dateFormatters';

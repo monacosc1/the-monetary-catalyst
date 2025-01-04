@@ -23,7 +23,7 @@ const TermsAndConditions = () => {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
           <p className="mb-4">
-            By accessing or using The Monetary Catalyst website, services, or subscription-based content ("Services"), you agree to be bound by these Terms and Conditions ("Terms"). If you do not agree to these Terms, you are prohibited from using or accessing the Services.
+            By accessing or using The Monetary Catalyst website, services, or subscription-based content (&quot;Services&quot;), you agree to be bound by these Terms and Conditions (&quot;Terms&quot;). If you do not agree to these Terms, you are prohibited from using or accessing the Services.
           </p>
           <p className="mb-4">
             We reserve the right to modify these Terms at any time, and such changes will be effective immediately upon posting. Your continued use of the Services after the posting of any changes constitutes your acceptance of the updated Terms.
@@ -42,7 +42,7 @@ const TermsAndConditions = () => {
           </p>
           <h3 className="text-xl font-semibold mb-2">2.3 Cancellation</h3>
           <p className="mb-4">
-            You may cancel your subscription at any time, but no refunds or credits will be provided for unused portions of the subscription term. To cancel, please visit the "My Account" section of our website.
+            You may cancel your subscription at any time, but no refunds or credits will be provided for unused portions of the subscription term. To cancel, please visit the &quot;My Account&quot; section of our website.
           </p>
           <h3 className="text-xl font-semibold mb-2">2.4 Pricing Changes</h3>
           <p className="mb-4">
@@ -53,7 +53,7 @@ const TermsAndConditions = () => {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">3. Intellectual Property and Copyright</h2>
           <p className="mb-4">
-            All content, including but not limited to text, images, data, analyses, articles, charts, and any other material provided on The Monetary Catalyst platform ("Content"), is protected by U.S. and international copyright laws. You may not reproduce, distribute, transmit, publicly display, or create derivative works from any of the Content without prior written permission from The Monetary Catalyst.
+            All content, including but not limited to text, images, data, analyses, articles, charts, and any other material provided on The Monetary Catalyst platform (&quot;Content&quot;), is protected by U.S. and international copyright laws. You may not reproduce, distribute, transmit, publicly display, or create derivative works from any of the Content without prior written permission from The Monetary Catalyst.
           </p>
           <p className="mb-4">
             You are granted a limited, non-exclusive, non-transferable license to access and use the Content for personal, non-commercial use only. Any unauthorized use of the Content may result in legal action.
@@ -75,7 +75,7 @@ const TermsAndConditions = () => {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">5. User Account</h2>
           <p className="mb-4">
-            To access certain features of the Services, you may need to create an account. You agree to provide accurate, complete, and current information during registration and to update it as necessary. You are responsible for maintaining the confidentiality of your account and password and for any activities that occur under your account.
+            To access certain features of the Services, you may need to create an account. You agree to provide accurate, complete, and current information during registration and to update it as necessary. You&apos;re responsible for maintaining the confidentiality of your account and password and for any activities that occur under your account.
           </p>
           <p className="mb-4">
             The Monetary Catalyst reserves the right to terminate or suspend accounts that violate these Terms or are associated with unlawful or harmful activity.
@@ -108,7 +108,7 @@ const TermsAndConditions = () => {
             To the fullest extent permitted by applicable law, The Monetary Catalyst and its affiliates shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Services.
           </p>
           <p className="mb-4">
-            In no event shall The Monetary Catalyst's liability exceed the total amount paid by you to access the Services over the previous 12 months.
+            In no event shall The Monetary Catalyst&apos;s liability exceed the total amount paid by you to access the Services over the previous 12 months.
           </p>
         </section>
 

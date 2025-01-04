@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/utils/supabase'
-import DotPattern from '@/components/DotPattern'
 import { withAuth } from '@/utils/withAuth'
 import SubscriptionDetails from '@/components/SubscriptionDetails'
 import PaymentDetails from '@/components/PaymentDetails'
@@ -13,13 +12,12 @@ const MyAccountPage = () => {
   const [activeTab, setActiveTab] = useState('profile')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [isEmailConfirmed, setIsEmailConfirmed] = useState(false)
+  const [, setEmail] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [message, setMessage] = useState('')
-  const [isEditingEmail, setIsEditingEmail] = useState(false)
+  const [, setIsEditingEmail] = useState(false)
   const [newEmail, setNewEmail] = useState('')
 
   useEffect(() => {
@@ -97,9 +95,13 @@ const MyAccountPage = () => {
       setTimeout(() => {
         setMessage('')
       }, 3000)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error updating profile:', error)
-      setMessage(error.message || 'An error occurred while updating profile')
+      setMessage(
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred while updating profile'
+      )
     }
   }
 
@@ -115,7 +117,7 @@ const MyAccountPage = () => {
       }
 
       // Validate current password
-      const { data: { user: currentUser }, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user?.email as string,
         password: currentPassword
       })
@@ -144,22 +146,13 @@ const MyAccountPage = () => {
       setTimeout(() => {
         setMessage('')
       }, 3000)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error updating password:', error)
-      setMessage(error.message || 'An error occurred while updating password')
-    }
-  }
-
-  const handleUpdateEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      const { error } = await supabase.auth.updateUser({ email: newEmail })
-      if (error) throw error
-      setEmail(newEmail)
-      setIsEditingEmail(false)
-      setMessage('Email update request sent. Please check your new email for confirmation.')
-    } catch (error: any) {
-      setMessage(error.message || 'An error occurred while updating email')
+      setMessage(
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred while updating password'
+      )
     }
   }
 

@@ -10,7 +10,7 @@ const PrivacyPolicy = () => {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
           <p>
-            The Monetary Catalyst ("we", "our", or "us") provides this Privacy Policy to inform you of our policies regarding the collection, use, and disclosure of information we receive from users ("you" or "your") of our services, including our website, premium content, subscriptions, and related offerings (collectively referred to as the "Platform").
+            The Monetary Catalyst (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) provides this Privacy Policy to inform you of our policies regarding the collection, use, and disclosure of information we receive from users (&quot;you&quot; or &quot;your&quot;) of our services, including our website, premium content, subscriptions, and related offerings (collectively referred to as the &quot;Platform&quot;).
           </p>
           <p className="mt-4">
             By using or accessing the Platform, you agree that you have read, understood, and consent to the collection and use of your information as described in this Privacy Policy. If you do not agree with this policy, you are prohibited from using or accessing the Platform.
@@ -62,7 +62,7 @@ const PrivacyPolicy = () => {
             <li>Provide access to our premium content and services</li>
             <li>Manage your account, subscription, and payment information</li>
             <li>Respond to customer inquiries and provide support</li>
-            <li>Improve and enhance the Platform's performance</li>
+            <li>Improve and enhance the Platform&apos;s performance</li>
             <li>Send administrative and marketing emails, including newsletters (with your consent)</li>
             <li>Ensure compliance with legal obligations and prevent fraud</li>
           </ul>
@@ -128,9 +128,9 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">9. Children's Privacy</h2>
+          <h2 className="text-2xl font-semibold mb-4">9. Children&apos;s Privacy</h2>
           <p>
-            Our Platform is not intended for use by children under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected such information, we will take steps to delete it.
+            Our Platform is not intended for use by children under the age of 18. We don&apos;t knowingly collect personal information from children. If we become aware that we have collected such information, we will take steps to delete it.
           </p>
         </section>
 

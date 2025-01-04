@@ -6,7 +6,10 @@ import { toast, Toaster } from 'react-hot-toast';
 
 declare global {
   interface Window {
-    grecaptcha: any;
+    grecaptcha: {
+      ready: (callback: () => void) => void;
+      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+    };
   }
 }
 
@@ -65,12 +68,12 @@ export default function ContactPage() {
       }
 
       // Wait for reCAPTCHA to be ready
-      await new Promise((resolve) => window.grecaptcha.ready(resolve));
+      await new Promise<void>((resolve) => window.grecaptcha.ready(resolve));
 
       // Get reCAPTCHA token
       const token = await window.grecaptcha.execute(
         process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!,
-        { action: 'submit' }  // Use a simpler action name
+        { action: 'submit' }
       );
 
       console.log('Generated token:', token); // For debugging
@@ -98,9 +101,9 @@ export default function ContactPage() {
       setName('');
       setEmail('');
       setMessage('');
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error:', error);
-      toast.error(error.message || 'Failed to send message');
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
       setIsSubmitting(false);
     }
@@ -119,7 +122,7 @@ export default function ContactPage() {
             <p className="text-lg text-gray-600 mb-8">
               Complete the form on this page to send an email to our support. 
               Alternatively, send an email as you prefer to the email address below. 
-              We'll respond as soon as we can.
+              We&apos;ll respond as soon as we can.
             </p>
             <p className="text-lg font-semibold text-gray-800">
               Email: <a href="mailto:support@themonetarycatalyst.com" className="text-primary hover:text-accent1">support@themonetarycatalyst.com</a>

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { formatPublishDate } from '@/utils/dateFormatters';
 import articleService from '@/services/articleService';
-import ArticleImage from './ArticleImage';
 import Link from 'next/link';
 
 interface SampleArticleDisplayProps {
@@ -12,8 +11,38 @@ interface SampleArticleDisplayProps {
   articleType: 'market-analysis' | 'investment-ideas';
 }
 
+interface ArticleData {
+  id: number;
+  title: string;
+  content: Array<{
+    type: string;
+    children: Array<{
+      type: string;
+      text?: string;
+      url?: string;
+      children?: Array<{ text: string }>;
+    }>;
+    image?: {
+      url: string;
+      caption?: string;
+      alternativeText?: string;
+    };
+    level?: number;
+  }>;
+  feature_image_url?: {
+    data?: {
+      attributes?: {
+        url: string;
+      };
+    };
+    url?: string;
+  };
+  author: string;
+  publish_date: string;
+}
+
 export default function SampleArticleDisplay({ articleId, articleType }: SampleArticleDisplayProps) {
-  const [article, setArticle] = useState<any>(null);
+  const [article, setArticle] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +63,7 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
     fetchArticle();
   }, [articleId]);
 
-  const renderContent = (section: any) => {
+  const renderContent = (section: ArticleData['content'][0]) => {
     console.log('Rendering section details:', {
       sectionType: section.type,
       sectionChildren: section.children,
@@ -52,7 +81,7 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
     if (section.type === 'paragraph') {
       return (
         <p className="mb-4 text-gray-800">
-          {section.children.map((child: any, index: number) => {
+          {section.children.map((child, index) => {
             console.log('Processing child in paragraph:', {
               childType: child.type,
               childUrl: child.url,
@@ -72,7 +101,7 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {child.children[0]?.text || 'Link'}
+                  {child.children?.[0]?.text || 'Link'}
                 </a>
               );
             }
@@ -83,30 +112,38 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
     }
 
     if (section.type === 'image') {
+      if (!section.image) return null;
+      
+      const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
+      if (!strapiUrl) {
+        console.error('NEXT_PUBLIC_STRAPI_URL is not defined');
+        return null;
+      }
+      
       console.log('Image section data:', {
         fullSection: section,
         imageData: section.image,
-        strapiUrl: process.env.NEXT_PUBLIC_STRAPI_URL,
+        strapiUrl,
         imageUrl: section.image.url,
-        hasStrapi: section.image.url.includes(process.env.NEXT_PUBLIC_STRAPI_URL)
+        hasStrapi: section.image.url.includes(strapiUrl)
       });
       
       const imageUrl = section.image.url.startsWith('http') 
         ? section.image.url 
-        : `${process.env.NEXT_PUBLIC_STRAPI_URL}${section.image.url}`;
+        : `${strapiUrl}${section.image.url}`;
       
       return (
-        <div key={section.id} className="my-8">
+        <div className="my-8">
           <Image
             src={imageUrl}
-            alt={section.caption || 'Article image'}
+            alt={section.image.caption || 'Article image'}
             width={800}
             height={400}
             className="rounded-lg mx-auto"
           />
-          {section.caption && (
+          {section.image.caption && (
             <p className="text-sm text-gray-600 text-center mt-2">
-              {section.caption}
+              {section.image.caption}
             </p>
           )}
         </div>
@@ -138,22 +175,31 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
       
       {/* Feature Image */}
       {article.feature_image_url && (
-        <div className="mb-8 flex justify-center">
-          <div className="w-full max-w-4xl">
-            <Image 
-              src={`${process.env.NEXT_PUBLIC_STRAPI_URL}${article.feature_image_url.url}`}
-              alt={article.title}
-              width={1200}
-              height={600}
-              className="w-full h-auto object-contain rounded-lg"
-            />
-          </div>
-        </div>
+        (() => {
+          const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
+          if (!strapiUrl) {
+            console.error('NEXT_PUBLIC_STRAPI_URL is not defined');
+            return null;
+          }
+          return (
+            <div className="mb-8 flex justify-center">
+              <div className="w-full max-w-4xl">
+                <Image 
+                  src={`${strapiUrl}${article.feature_image_url.url}`}
+                  alt={article.title}
+                  width={1200}
+                  height={600}
+                  className="w-full h-auto object-contain rounded-lg"
+                />
+              </div>
+            </div>
+          );
+        })()
       )}
 
       {/* Article Content */}
       <div className="prose max-w-none">
-        {Array.isArray(article.content) && article.content.map((section: any, index: number) => (
+        {Array.isArray(article.content) && article.content.map((section, index) => (
           <div key={index}>
             {renderContent(section)}
           </div>

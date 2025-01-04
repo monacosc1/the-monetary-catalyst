@@ -2,16 +2,45 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 import DotPattern from '@/components/DotPattern';
 import ArticleGate from '@/components/ArticleGate';
-import articleService, { StrapiImage } from '@/services/articleService';
+import articleService from '@/services/articleService';
 import { formatPublishDate } from '@/utils/dateFormatters';
 
+interface ArticleData {
+  id: number;
+  title: string;
+  content: Array<{
+    type: string;
+    children: Array<{
+      type: string;
+      text?: string;
+      url?: string;
+      children?: Array<{ text: string }>;
+    }>;
+    image?: {
+      url: string;
+      caption?: string;
+      alternativeText?: string;
+    };
+    level?: number;
+  }>;
+  feature_image_url?: {
+    data?: {
+      attributes?: {
+        url: string;
+      };
+    };
+    url?: string;
+  };
+  author: string;
+  publish_date: string;
+}
+
 export default function InvestmentIdeaPage({ params }: { params: { slug: string } }) {
-  const [article, setArticle] = useState<any>(null);
+  const [article, setArticle] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { user } = useAuth();
@@ -53,13 +82,13 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl">Article not found</h2>
-        <p>The article you're looking for doesn't exist or has been removed.</p>
+        <p>The article you&apos;re looking for doesn&apos;t exist or has been removed.</p>
       </div>
     );
   }
 
   // Helper function to clean image URLs
-  const getCleanImageUrl = (imageData: any) => {
+  const getCleanImageUrl = (imageData: ArticleData['feature_image_url']) => {
     if (!imageData) return null;
     
     const rawUrl = imageData.data?.attributes?.url || imageData.url;
@@ -117,11 +146,11 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
           )}
 
           {/* Article Content */}
-          {article.content.map((block: any, index: number) => {
-            if (block.type === 'paragraph') {
+          {article.content.map((section, index) => {
+            if (section.type === 'paragraph') {
               return (
                 <p key={index} className="mb-4">
-                  {block.children.map((child: any, childIndex: number) => {
+                  {section.children.map((child, childIndex) => {
                     if (child.type === 'text') {
                       return child.text;
                     }
@@ -134,7 +163,7 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          {child.children[0].text || 'Link'}
+                          {child.children?.[0]?.text || 'Link'}
                         </a>
                       );
                     }
@@ -144,29 +173,29 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
               );
             }
             
-            if (block.type === 'heading') {
-              const HeadingTag = `h${block.level}` as keyof JSX.IntrinsicElements;
+            if (section.type === 'heading') {
+              const HeadingTag = `h${section.level}` as keyof JSX.IntrinsicElements;
               return (
                 <HeadingTag key={index} className="text-2xl font-bold mt-6 mb-4">
-                  {block.children[0].text}
+                  {section.children[0].text}
                 </HeadingTag>
               );
             }
 
-            if (block.type === 'image') {
-              const imageUrl = getCleanImageUrl(block.image);
+            if (section.type === 'image') {
+              const imageUrl = getCleanImageUrl(section.image);
               return imageUrl ? (
                 <div key={index} className="my-8">
                   <Image
                     src={imageUrl}
-                    alt={block.image.alternativeText || 'Article image'}
+                    alt={section.image?.alternativeText || 'Article image'}
                     width={800}
                     height={400}
                     className="rounded-lg mx-auto"
                   />
-                  {block.image.caption && (
+                  {section.image?.caption && (
                     <p className="text-sm text-gray-600 text-center mt-2">
-                      {block.image.caption}
+                      {section.image.caption}
                     </p>
                   )}
                 </div>

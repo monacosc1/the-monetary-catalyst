@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
 import { useAuth } from '@/context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
+import { supabase } from '@/utils/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,9 +21,9 @@ export default function LoginPage() {
     try {
       await login(email, password)
       router.push('/') // Route to the home page after successful login
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Login error:', error)
-      setError('Invalid email or password. Please try again.')
+      setError(error instanceof Error ? error.message : 'Invalid email or password. Please try again.')
     }
   }
 
@@ -30,10 +31,25 @@ export default function LoginPage() {
     try {
       await signInWithGoogle()
       // The user will be redirected to Google for authentication
-    } catch (error: any) {
+    } catch {
       setError('An error occurred during Google Sign-In. Please try again.')
     }
   }
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          router.push('/')
+        }
+      } catch (err) {
+        console.error('Error checking session:', err)
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   return (
     <ErrorBoundary>
@@ -139,7 +155,7 @@ export default function LoginPage() {
             </form>
 
             <p className="mt-6 text-center text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="font-medium text-primary hover:text-accent1">
                 Sign up
               </Link>

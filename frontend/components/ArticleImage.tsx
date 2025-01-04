@@ -2,8 +2,22 @@
 
 import Image from 'next/image';
 
+interface StrapiImage {
+  data?: {
+    attributes?: {
+      url?: string;
+      formats?: {
+        small?: {
+          url?: string;
+        };
+      };
+    };
+  };
+  url?: string;
+}
+
 interface ArticleImageProps {
-  imageUrl: any;
+  imageUrl: StrapiImage;
   title: string;
   strapiUrl: string;
   className?: string;

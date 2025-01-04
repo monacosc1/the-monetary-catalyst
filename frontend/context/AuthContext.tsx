@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/utils/supabase'
-import { useRouter } from 'next/navigation'
 
 interface AuthContextType {
   user: User | null
@@ -20,11 +19,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const router = useRouter()
 
   useEffect(() => {
     const fetchSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
       setIsLoggedIn(!!session?.user)
     }

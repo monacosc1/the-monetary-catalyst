@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/utils/supabase'
 
 interface SubscriptionInfo {
@@ -19,7 +19,7 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
   const [isCancelling, setIsCancelling] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     try {
       setIsLoading(true)
       
@@ -61,14 +61,14 @@ export default function SubscriptionDetails({ userId }: { userId: string }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (userId) {
       console.log('Fetching subscription for userId:', userId);
       fetchSubscription();
     }
-  }, [userId]);
+  }, [userId, fetchSubscription]);
 
   const handleCancelSubscription = async () => {
     try {

@@ -19,10 +19,10 @@ export default function AboutPage() {
                 I founded The Monetary Catalyst in 2023 as an independent investment research firm
                 dedicated to providing actionable insights in an ever-changing financial landscape.
                 Our mission is to empower investors with the knowledge and analysis needed to make
-                informed decisions in today's complex markets.
+                informed decisions in today&apos;s complex markets.
               </p>
               <p>
-                In our short but impactful history, we've quickly established ourselves as a
+                In our short but impactful history, we&apos;ve quickly established ourselves as a
                 trusted source of financial wisdom. Our offerings have expanded to include a
                 comprehensive suite of resources tailored to the needs of modern investors:
                 our flagship weekly publication, our daily market briefings, and our in-depth

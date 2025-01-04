@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/utils/supabase'
 import DotPattern from '@/components/DotPattern'
 
@@ -12,7 +12,6 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     const hash = window.location.hash
@@ -50,9 +49,13 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         router.push('/login')
       }, 2000)
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Reset password error:', error)
-      setError(error.message || 'Failed to reset password')
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to reset password'
+      )
     } finally {
       setIsLoading(false)
     }

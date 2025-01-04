@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import DotPattern from '@/components/DotPattern'
 
 export default function ForgotPasswordPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -38,15 +36,19 @@ export default function ForgotPasswordPage() {
       }
 
       setMessage('Please check your email for password reset instructions. The link will expire in 30 minutes.')
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Full error details:', {
-        message: error.message,
-        status: error?.status,
-        name: error?.name,
-        stack: error?.stack,
-        code: error?.code
+        message: error instanceof Error ? error.message : 'Unknown error',
+        status: error instanceof Error && 'status' in error ? error.status : undefined,
+        name: error instanceof Error ? error.name : undefined,
+        stack: error instanceof Error ? error.stack : undefined,
+        code: error instanceof Error && 'code' in error ? error.code : undefined
       });
-      setError(error.message || 'An error occurred while sending the reset instructions. Please try again.')
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : 'An error occurred while sending the reset instructions. Please try again.'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -59,7 +61,7 @@ export default function ForgotPasswordPage() {
         <div className="max-w-md mx-auto bg-white text-gray-900 rounded-lg shadow-xl p-8">
           <h2 className="text-3xl font-bold text-center mb-6">Reset Your Password</h2>
           <p className="text-center text-sm text-gray-600 mb-8">
-            Enter your email address and we'll send you instructions to reset your password.
+            Enter your email address and we&apos;ll send you instructions to reset your password.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
