@@ -41,7 +41,7 @@ export default function AboutPage() {
               <div className="mt-8">
                 <p className="font-semibold">
                   Sincerely,<br />
-                  John Doe<br />
+                  Scott M.<br />
                   Founder and Chief Analyst
                 </p>
               </div>
