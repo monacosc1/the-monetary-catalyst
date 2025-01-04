@@ -41,7 +41,7 @@ cd frontend && npm install
 cd ../backend && npm install
 ```
 
-For detailed setup instructions, see [Local Development Guide](docs/deployment/local.md)
+For detailed setup instructions, see below
 
 ## Documentation
 
