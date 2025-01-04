@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prebuild": "npm run lint && npm run type-check",
+    "type-check": "tsc --noEmit",
+    "verify": "npm run lint && npm run build"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^2.8.1",

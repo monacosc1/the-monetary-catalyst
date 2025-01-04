@@ -3,8 +3,6 @@
 ## Overview
 The Monetary Catalyst is a comprehensive financial research and analysis platform providing premium market insights and investment ideas. The platform offers subscription-based access to professional financial research, market analysis, and investment strategies.
 
-![Platform Architecture](docs/assets/architecture-diagram.png)
-
 ## Tech Stack
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
 - **Backend**: Express.js, TypeScript
@@ -107,8 +105,6 @@ npm run test:e2e
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ## Environment Setup
 
