@@ -17,6 +17,8 @@ export default ({ env }) => ({
       idleTimeoutMillis: 30000,
       reapIntervalMillis: 1000,
       createRetryIntervalMillis: 100,
+      propagateCreateError: false
     },
+    debug: false,
   },
 });
