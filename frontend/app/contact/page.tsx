@@ -78,7 +78,7 @@ export default function ContactPage() {
 
       console.log('Generated token:', token); // For debugging
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/contact`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
