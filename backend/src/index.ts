@@ -37,6 +37,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Add a simple root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'The Monetary Catalyst API',
+    status: 'healthy'
+  });
+});
+
 // Routes
 app.use('/api', paymentRoutes);
 app.use(contactRoutes);
