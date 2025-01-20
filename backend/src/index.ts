@@ -18,8 +18,17 @@ const app = express();
 // Configure Express to handle raw body for webhooks
 app.use('/api/webhook', express.raw({ type: 'application/json' }));
 
+// Update CORS configuration to allow both www and non-www domains
+app.use(cors({
+  origin: [
+    'https://www.themonetarycatalyst.com',
+    'https://themonetarycatalyst.com',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
+
 // Regular middleware for other routes
-app.use(cors());
 app.use(express.json());
 
 // Add this before your routes
