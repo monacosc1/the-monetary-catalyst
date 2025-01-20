@@ -8,12 +8,13 @@ const nextConfig = {
         port: '1337',
         pathname: '/uploads/**',
       },
-      // Add production URL when you deploy Strapi
-      // {
-      //   protocol: 'https',
-      //   hostname: 'your-production-strapi-domain.com',
-      //   pathname: '/uploads/**',
-      // }
+      // Add production Strapi URL
+      {
+        protocol: 'https',
+        hostname: 'cms.themonetarycatalyst.com',
+        port: '',
+        pathname: '/uploads/**',
+      }
     ],
   },
 };
