@@ -48,32 +48,54 @@ class EmailService {
 
   // Contact form emails
   async sendContactFormEmail(name: string, email: string, message: string) {
-    const msg = {
-      to: 'support@themonetarycatalyst.com',
-      from: {
-        email: process.env.FROM_EMAIL!,
-        name: 'The Monetary Catalyst'
-      },
-      subject: `New Contact Form Submission from ${name}`,
-      text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
-      html: `
-        <h2>New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message.replace(/\n/g, '<br>')}</p>
-      `,
-      headers: {
-        'Precedence': 'bulk',
-        'X-Entity-Ref-ID': crypto.randomBytes(32).toString('hex'),
-        'X-VPS-Request-ID': `${Date.now()}-${crypto.randomBytes(16).toString('hex')}`,
-        'X-VPS-Sender-IP': process.env.SENDGRID_IP || '',
-        'Feedback-ID': `${process.env.SENDGRID_CONTACT_FORM_KEY}:contact-form:${Date.now()}`,
-        'List-ID': '<contact-form.themonetarycatalyst.com>',
-        'Message-ID': `<${crypto.randomBytes(20).toString('hex')}@themonetarycatalyst.com>`
+    try {
+      console.log('Preparing to send email with SendGrid...');
+      
+      if (!process.env.SENDGRID_CONTACT_FORM_KEY) {
+        throw new Error('SENDGRID_CONTACT_FORM_KEY not configured');
       }
-    };
-    return sgMail.send(msg);
+
+      if (!process.env.FROM_EMAIL) {
+        throw new Error('FROM_EMAIL not configured');
+      }
+
+      // Set API key for this specific operation
+      sgMail.setApiKey(process.env.SENDGRID_CONTACT_FORM_KEY);
+
+      const msg = {
+        to: 'support@themonetarycatalyst.com',
+        from: {
+          email: process.env.FROM_EMAIL,
+          name: 'The Monetary Catalyst'
+        },
+        subject: `New Contact Form Submission from ${name}`,
+        text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
+        html: `
+          <h2>New Contact Form Submission</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Message:</strong></p>
+          <p>${message.replace(/\n/g, '<br>')}</p>
+        `
+      };
+
+      console.log('Sending email with configuration:', {
+        to: msg.to,
+        from: msg.from.email,
+        subject: msg.subject
+      });
+
+      const result = await sgMail.send(msg);
+      console.log('SendGrid response:', result);
+      return result;
+    } catch (error) {
+      console.error('SendGrid error details:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        code: (error as any)?.code,
+        response: (error as any)?.response?.body
+      });
+      throw error;
+    }
   }
 
   // Add this method to the EmailService class
