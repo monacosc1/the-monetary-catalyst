@@ -47,7 +47,7 @@ app.get('/', (req, res) => {
 
 // Routes
 app.use('/api', paymentRoutes);
-app.use(contactRoutes);
+app.use('/api', contactRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', newsletterRoutes);
 app.use('/api', webhookRoutes);
