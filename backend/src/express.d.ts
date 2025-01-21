@@ -1,4 +1,3 @@
-// src/express.d.ts
 import { Request } from 'express';
 
 declare module 'express' {
@@ -7,4 +6,4 @@ declare module 'express' {
       id: string;
     };
   }
-}
+} 
