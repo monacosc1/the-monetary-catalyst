@@ -9,8 +9,18 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "types": ["node", "express"]
+    "types": ["jest", "node", "express"],
+    "typeRoots": ["./node_modules/@types", "./src/tests/types"]
   },
-  "include": ["src/**/*.ts", "src/express.d.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*.ts",
+    "src/express.d.ts",
+    "src/tests/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/tests",
+    "**/*.test.ts",
+    "jest.setup.js"
+  ]
 }

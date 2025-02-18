@@ -7,11 +7,20 @@ import supabase from '../config/supabase';
 import { signToken } from '../services/jwtService';
 import config from '../config/environment';
 import { emailService } from '../services/emailService';
+import { TABLES } from '../config/tables';
 
 // Register User
 export const registerUser = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
   try {
     const { email, password, first_name, last_name, termsAccepted } = req.body;
+    
+    // Add logging
+    console.log('Registration request received:', {
+      email,
+      first_name,
+      last_name,
+      termsAccepted
+    });
 
     if (!termsAccepted) {
       res.status(400).json({ message: 'You must accept the Terms & Conditions to create an account.' });
@@ -43,33 +52,88 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Create user profile
-    const { data: profileData, error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
+    // After auth user creation
+    console.log('Auth user created:', {
+      userId: authData.user.id,
+      email: authData.user.email
+    });
+
+    // Before profile creation attempt
+    const { data: existingProfileCheck } = await supabase
+      .from(TABLES.USER_PROFILES)
+      .select('user_id, email')
+      .eq('user_id', authData.user.id)
+      .single();
+
+    console.log('Existing profile check:', {
+      existingProfile: existingProfileCheck,
+      attemptingToCreate: {
         user_id: authData.user.id,
         email,
         first_name,
-        last_name,
-        role: 'user',
-        terms_accepted: termsAccepted
-      })
-      .select()
-      .single();
+        last_name
+      }
+    });
 
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      // If profile creation fails, we should clean up the auth user
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      res.status(500).json({ message: 'Error creating user profile' });
-      return;
+    // After auth user creation and existing profile check...
+    if (existingProfileCheck) {
+      // Update existing profile instead of trying to insert
+      const { data: profile, error: profileError } = await supabase
+        .from(TABLES.USER_PROFILES)
+        .update({
+          email,
+          first_name,
+          last_name,
+          role: 'user',
+          terms_accepted: termsAccepted,
+          newsletter_subscribed: false
+        })
+        .eq('user_id', authData.user.id)
+        .select()
+        .single();
+
+      // Add logging for profile result
+      if (profile) {
+        console.log('Profile updated successfully:', profile);
+      }
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        // If profile update fails, clean up the auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        res.status(500).json({ message: 'Error updating user profile' });
+        return;
+      }
+    } else {
+      // Create new profile if one doesn't exist
+      const { data: profile, error: profileError } = await supabase
+        .from(TABLES.USER_PROFILES)
+        .insert({
+          user_id: authData.user.id,
+          email,
+          first_name,
+          last_name,
+          role: 'user',
+          terms_accepted: termsAccepted,
+          newsletter_subscribed: false
+        })
+        .select()
+        .single();
+
+      // Add logging for profile result
+      if (profile) {
+        console.log('Profile created successfully:', profile);
+      }
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        // If profile creation fails, clean up the auth user
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        res.status(500).json({ message: 'Error creating user profile' });
+        return;
+      }
     }
 
     // Fire and forget the welcome email
-    emailService.sendWelcomeEmail(
-      email,
-      first_name
-    )
+    emailService.sendWelcomeEmail(email, first_name)
       .catch(error => console.error('Welcome email error:', error));
 
     res.status(201).json({
@@ -82,7 +146,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       }
     });
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Register error:', error);
     next(error);
   }
 };
@@ -92,33 +156,49 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
   try {
     const { email, password } = req.body;
 
-    // Fetch user from database
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
+    // Add debug log
+    console.log('loginUser: About to call signInWithPassword', {
+      isMockFunction: jest.isMockFunction(supabase.auth.signInWithPassword)
+    });
 
-    if (error || !user) {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    // Add debug log
+    console.log('loginUser: Auth response:', { authData, authError });
+
+    if (authError || !authData.user) {
       res.status(401).json({ message: 'Invalid credentials' });
       return;
     }
 
-    // Compare password
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    // Get additional profile data
+    const { data: profile, error: profileError } = await supabase
+      .from(TABLES.USER_PROFILES)
+      .select('*')
+      .eq('user_id', authData.user.id)
+      .single();
 
-    if (!isPasswordValid) {
-      res.status(401).json({ message: 'Invalid credentials' });
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      res.status(500).json({ message: 'Error fetching user profile' });
       return;
     }
 
     // Generate JWT token
-    const token = signToken(user.id);
+    const token = signToken(authData.user.id);
 
     res.status(200).json({ 
       message: 'User logged in successfully',
-      user: { id: user.id, email: user.email, first_name: user.first_name, last_name: user.last_name },
-      token 
+      user: {
+        id: authData.user.id,
+        email: authData.user.email,
+        first_name: profile.first_name,
+        last_name: profile.last_name
+      },
+      token
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -138,24 +218,25 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
     }
 
     // Fetch user profile from the database
-    const { data: userProfile, error } = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name, created_at')
-      .eq('id', userId)
+    const { data: profile, error: profileError } = await supabase
+      .from(TABLES.USER_PROFILES)
+      .select()
+      .eq('user_id', userId)
       .single();
 
-    if (error) {
-      res.status(500).json({ message: 'Error fetching user profile', error: error.message });
+    if (profileError) {
+      res.status(500).json({ message: 'Error fetching user profile', error: profileError.message });
       return;
     }
 
-    if (!userProfile) {
+    if (!profile) {
       res.status(404).json({ message: 'User profile not found' });
       return;
     }
 
-    res.status(200).json({ userProfile });
+    res.status(200).json({ profile });
   } catch (error) {
+    console.error('Get profile error:', error);
     next(error);
   }
 };
