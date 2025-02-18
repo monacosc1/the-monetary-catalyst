@@ -17,5 +17,10 @@
     "src/express.d.ts",
     "src/tests/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "src/tests",
+    "**/*.test.ts",
+    "jest.setup.js"
+  ]
 }
