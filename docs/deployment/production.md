@@ -29,6 +29,7 @@ graph TD
 # Production URLs
 NEXT_PUBLIC_API_URL=https://api.themonetarycatalyst.com
 NEXT_PUBLIC_SITE_URL=https://themonetarycatalyst.com
+NEXT_PUBLIC_FRONTEND_URL=https://themonetarycatalyst.com
 
 # Supabase Production
 NEXT_PUBLIC_SUPABASE_URL=your_prod_supabase_url

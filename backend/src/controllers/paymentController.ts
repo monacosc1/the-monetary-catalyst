@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import supabase from '../config/supabase';
 import { emailService } from '../services/emailService';
 import { paymentService } from '../services/paymentService';
+import { TABLES } from '../config/tables';
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -19,6 +20,34 @@ function isValidCustomer(customer: Stripe.Customer | Stripe.DeletedCustomer): cu
   return !('deleted' in customer);
 }
 
+const getBaseUrl = (): string => {
+  const env = process.env.NODE_ENV;
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  if (env === 'production') {
+    if (!frontendUrl) {
+      console.warn('FRONTEND_URL not set in production environment');
+      return 'https://themonetarycatalyst.com';
+    }
+    return frontendUrl;
+  }
+
+  // Development environment
+  if (!frontendUrl) {
+    console.warn('FRONTEND_URL not set in development environment, using default');
+    return 'http://localhost:3000';
+  }
+
+  // Validate URL format
+  try {
+    new URL(frontendUrl);
+    return frontendUrl;
+  } catch (error) {
+    console.warn(`Invalid FRONTEND_URL format: ${frontendUrl}, using default`);
+    return 'http://localhost:3000';
+  }
+};
+
 export const createCheckoutSession = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -30,7 +59,7 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
     // Get or create customer
     let customerId: string;
     const { data: userProfile } = await supabase
-      .from('user_profiles')
+      .from(TABLES.USER_PROFILES)
       .select('stripe_customer_id')
       .eq('user_id', userId)
       .single();
@@ -49,9 +78,22 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
 
       // Save customer ID to user_profiles
       await supabase
-        .from('user_profiles')
+        .from(TABLES.USER_PROFILES)
         .update({ stripe_customer_id: customerId })
         .eq('user_id', userId);
+    }
+
+    // Get the base URL with environment checks and validation
+    const baseUrl = getBaseUrl();
+    
+    // Log checkout session creation in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Creating checkout session with:', {
+        customerId,
+        userId,
+        baseUrl,
+        priceId: req.body.priceId
+      });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -64,18 +106,38 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
           quantity: 1,
         },
       ],
-      success_url: 'https://themonetarycatalyst.com/success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://themonetarycatalyst.com/pricing',
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
       client_reference_id: userId,
       metadata: {
-        userId: userId
+        userId: userId,
+        environment: process.env.NODE_ENV || 'development'
       }
     });
 
-    res.json({ url: session.url }); // Return the URL instead of sessionId
+    // Log successful session creation in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Checkout session created:', {
+        sessionId: session.id,
+        successUrl: session.success_url,
+        cancelUrl: session.cancel_url
+      });
+    }
+
+    res.json({ url: session.url });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({ error: 'Failed to create checkout session' });
+    console.error('Error creating checkout session:', {
+      error,
+      userId: req.user?.id,
+      environment: process.env.NODE_ENV
+    });
+    
+    // Enhanced error response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      error: 'Failed to create checkout session',
+      details: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+    });
   }
 };
 
@@ -104,7 +166,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
           
           // Create subscription record in Supabase
           const { data: subData, error: insertError } = await supabase
-            .from('subscriptions')
+            .from(TABLES.SUBSCRIPTIONS)
             .insert({
               user_id: session.client_reference_id,
               stripe_subscription_id: session.subscription,
@@ -208,7 +270,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
           
           // Update subscription status in Supabase
           const { error: updateError } = await supabase
-            .from('subscriptions')
+            .from(TABLES.SUBSCRIPTIONS)
             .update({
               status: 'expired',
               payment_status: 'cancelled',
@@ -245,7 +307,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
             
             // Find the subscription in Supabase
             const { data: supabaseSubscription, error: subError } = await supabase
-              .from('subscriptions')
+              .from(TABLES.SUBSCRIPTIONS)
               .select('id, user_id')
               .eq('stripe_subscription_id', invoice.subscription)
               .single();
@@ -257,7 +319,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
             // Create payment record
             const { error: paymentError } = await supabase
-              .from('payments')
+              .from(TABLES.PAYMENTS)
               .insert({
                 user_id: supabaseSubscription.user_id,
                 subscription_id: supabaseSubscription.id,
@@ -277,7 +339,7 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
 
             // Update subscription end date
             const { error: updateError } = await supabase
-              .from('subscriptions')
+              .from(TABLES.SUBSCRIPTIONS)
               .update({
                 end_date: new Date(subscription.current_period_end * 1000).toISOString(),
                 updated_at: new Date().toISOString(),
@@ -355,7 +417,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
     // Check for existing active subscription
     const { data: existingSubscription } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
@@ -367,7 +429,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       // Update existing if same plan type
       if (existingSubscription.plan_type === (subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly')) {
         const { data, error: updateError } = await supabase
-          .from('subscriptions')
+          .from(TABLES.SUBSCRIPTIONS)
           .update({
             end_date: new Date(subscription.current_period_end * 1000),
             payment_status: 'active'
@@ -384,7 +446,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       } else {
         // If plan type changed, mark old as expired and create new
         await supabase
-          .from('subscriptions')
+          .from(TABLES.SUBSCRIPTIONS)
           .update({
             status: 'expired',
             payment_status: 'cancelled',
@@ -393,7 +455,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           .eq('id', existingSubscription.id);
 
         const { data, error } = await supabase
-          .from('subscriptions')
+          .from(TABLES.SUBSCRIPTIONS)
           .insert({
             user_id: userId,
             stripe_subscription_id: subscription.id,
@@ -416,7 +478,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     } else {
       // No active subscription exists, create new one
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from(TABLES.SUBSCRIPTIONS)
         .insert({
           user_id: userId,
           stripe_subscription_id: subscription.id,
@@ -439,7 +501,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
     // Create payment record using invoice data instead of payment intent
     const { error: paymentError } = await supabase
-      .from('payments')
+      .from(TABLES.PAYMENTS)
       .insert({
         user_id: userId,
         subscription_id: subscriptionData.id,
@@ -470,7 +532,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
     // Get the Supabase subscription ID
     const { data: supabaseSubscription } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .select('id')
       .eq('stripe_subscription_id', subscription.id)
       .single();
@@ -482,7 +544,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
     // Create payment record
     const { error: paymentError } = await supabase
-      .from('payments')
+      .from(TABLES.PAYMENTS)
       .insert({
         user_id: userId,
         subscription_id: supabaseSubscription.id,
@@ -501,7 +563,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
     // Update subscription status
     const { error: updateError } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .update({
         status: 'active',
         payment_status: 'active',
@@ -525,7 +587,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return;
 
   await supabase
-    .from('subscriptions')
+    .from(TABLES.SUBSCRIPTIONS)
     .update({
       payment_status: 'failed',
       status: 'inactive'
@@ -591,7 +653,7 @@ export const verifySession = async (req: Request, res: Response): Promise<void> 
     
     // Check Supabase tables
     const { data: subscription, error: subError } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .select('*')
       .eq('stripe_subscription_id', session.subscription)
       .single();
@@ -629,7 +691,7 @@ export const getPaymentMethod = async (req: Request, res: Response): Promise<voi
 
     // Get user's Stripe customer ID
     const { data: userProfile } = await supabase
-      .from('user_profiles')
+      .from(TABLES.USER_PROFILES)
       .select('stripe_customer_id')
       .eq('user_id', userId)
       .single();
@@ -675,7 +737,7 @@ export const createSetupIntent = async (req: Request, res: Response): Promise<vo
 
     // Get user's Stripe customer ID
     const { data: userProfile } = await supabase
-      .from('user_profiles')
+      .from(TABLES.USER_PROFILES)
       .select('stripe_customer_id')
       .eq('user_id', userId)
       .single();
@@ -720,7 +782,7 @@ export const cancelSubscription = async (req: AuthenticatedRequest, res: Respons
     // Get active subscription from Supabase - modify the query to find by stripe_subscription_id
     let activeSubscription;
     const { data: userProfile } = await supabase
-      .from('user_profiles')
+      .from(TABLES.USER_PROFILES)
       .select('stripe_customer_id')
       .eq('user_id', userId)
       .single();
@@ -746,7 +808,7 @@ export const cancelSubscription = async (req: AuthenticatedRequest, res: Respons
 
     // Try to find existing subscription in Supabase by stripe_subscription_id
     const { data: existingSubscription, error: fetchError } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .select('*')
       .eq('stripe_subscription_id', stripeSubscription.id)
       .single();
@@ -774,7 +836,7 @@ export const cancelSubscription = async (req: AuthenticatedRequest, res: Respons
 
     // Update subscription in database
     const { error: updateError } = await supabase
-      .from('subscriptions')
+      .from(TABLES.SUBSCRIPTIONS)
       .update({
         cancelled_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
