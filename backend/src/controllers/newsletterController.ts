@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import supabase from '../config/supabase';
 import { emailService } from '../services/emailService';
 import { NewsletterSubscription } from '../types/newsletter';
+import { TABLES } from '../config/tables';
 
 export const subscribeToNewsletter = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -28,7 +29,7 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
 
     // Check if email already exists in newsletter_users
     const { data: existingSubscriber } = await supabase
-      .from('newsletter_users')
+      .from(TABLES.NEWSLETTER_USERS)
       .select('id, status')
       .eq('email', email)
       .single();
@@ -43,7 +44,7 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
       } else {
         // If they exist but status is 'unsubscribed', reactivate them
         const { data, error } = await supabase
-          .from('newsletter_users')
+          .from(TABLES.NEWSLETTER_USERS)
           .update({
             status: 'active',
             name,
@@ -71,7 +72,7 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
 
     // Create new subscriber
     const { data, error } = await supabase
-      .from('newsletter_users')
+      .from(TABLES.NEWSLETTER_USERS)
       .insert({
         email,
         name,
