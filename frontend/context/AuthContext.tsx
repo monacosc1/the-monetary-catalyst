@@ -21,6 +21,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    console.log('Environment Variables Check:');
+    console.log('API_URL:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('FRONTEND_URL:', process.env.NEXT_PUBLIC_FRONTEND_URL);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+
     const fetchSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
@@ -46,10 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const register = async (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => {
-    console.log('Starting registration process:', { email, firstName, lastName, termsAccepted });
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    console.log('API URL being used:', apiUrl);
     
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
