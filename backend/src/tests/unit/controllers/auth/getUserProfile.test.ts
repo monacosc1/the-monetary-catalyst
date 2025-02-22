@@ -4,11 +4,56 @@ import { databaseHelper } from '../../../helpers/database';
 import { TABLES } from '../../../../config/tables';
 
 describe('Auth Controller - Get User Profile', () => {
+  // Capture original implementation properly with type safety
+  const originalFromImpl = mockSupabase.from.getMockImplementation() ?? ((table: string) => {
+    throw new Error(`Unexpected table access during tests: ${table}`);
+  });
+
   beforeEach(async () => {
-    console.log('=== Test Setup Starting ===');
-    await databaseHelper.cleanTables();
+    console.log('\n=== Test Setup Starting ===');
+    
+    // First reset mocks and restore original implementation
     resetMocks();
+    mockSupabase.from.mockImplementation(originalFromImpl);
+
+    // Log query builder state before any overrides
+    const qb = mockSupabase.from(TABLES.USER_PROFILES);
+    console.log('In getUserProfile before cleanup, query builder:', {
+      isQueryBuilderDefined: !!qb,
+      hasDelete: !!qb?.delete,
+      hasNot: !!qb?.not,
+      methods: qb ? Object.keys(qb) : 'undefined',
+      mockState: {
+        isJestMock: jest.isMockFunction(mockSupabase.from),
+        implementation: typeof mockSupabase.from.getMockImplementation()
+      }
+    });
+
+    await databaseHelper.cleanTables();
     console.log('=== Test Setup Complete ===');
+  });
+
+  afterEach(() => {
+    console.log('\n=== Test Cleanup Starting ===');
+    
+    // Reset and properly restore original implementation
+    mockSupabase.from.mockReset();
+    mockSupabase.from.mockImplementation(originalFromImpl);
+    
+    // Validate restoration
+    const qb = mockSupabase.from(TABLES.USER_PROFILES);
+    console.log('Query builder after cleanup:', {
+      isQueryBuilderDefined: !!qb,
+      hasDelete: !!qb?.delete,
+      hasNot: !!qb?.not,
+      methods: qb ? Object.keys(qb) : 'undefined',
+      mockState: {
+        isJestMock: jest.isMockFunction(mockSupabase.from),
+        implementation: typeof mockSupabase.from.getMockImplementation()
+      }
+    });
+    
+    console.log('=== Test Cleanup Complete ===\n');
   });
 
   it('should return user profile when valid token provided', async () => {
