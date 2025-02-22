@@ -17,15 +17,68 @@ export const databaseHelper = {
    * Clean test database tables
    */
   async cleanTables() {
-    console.log('Cleaning test tables...');
-    await Promise.all([
-      testSupabase
+    console.log('\n=== Database Cleanup Starting ===');
+    
+    // Log query builder state before cleanup
+    const qb = testSupabase.from(TABLES.USER_PROFILES);
+    console.log('Initial query builder:', {
+      isQueryBuilderDefined: !!qb,
+      hasDelete: !!qb?.delete,
+      hasNot: !!qb?.not,
+      methods: qb ? Object.keys(qb) : 'undefined',
+      hasThenable: typeof qb?.then === 'function'
+    });
+
+    try {
+      console.log('Attempting to clean tables...');
+      
+      // Create and inspect the cleanup chain
+      const cleanupChain = testSupabase
         .from(TABLES.USER_PROFILES)
         .delete()
-        .not('user_id', 'is', null),
-      // ... other table cleanups
-    ]);
-    console.log('Test tables cleaned');
+        .not('user_id', 'is', null);
+        
+      console.log('Cleanup chain details:', {
+        type: typeof cleanupChain,
+        isPromise: cleanupChain instanceof Promise,
+        hasThenable: typeof cleanupChain?.then === 'function',
+        methods: Object.keys(cleanupChain),
+        deleteReturnType: typeof cleanupChain?.delete?.(),
+        notReturnType: typeof cleanupChain?.not?.(),
+        thenType: typeof cleanupChain?.then
+      });
+
+      await Promise.all([
+        Promise.resolve(cleanupChain)
+          .then((result) => {
+            console.log('Cleanup chain resolved with:', result);
+            console.log('Successfully cleaned USER_PROFILES');
+          })
+          .catch((err: any) => {
+            console.error('Error cleaning USER_PROFILES:', {
+              error: err,
+              stack: err.stack,
+              chainState: {
+                hasDelete: !!cleanupChain?.delete,
+                deleteReturnType: typeof cleanupChain?.delete?.(),
+                notReturnType: typeof cleanupChain?.not?.(),
+                thenType: typeof cleanupChain?.then
+              }
+            });
+          }),
+        // ... other table cleanups
+      ]);
+      console.log('All tables cleaned successfully');
+    } catch (error) {
+      console.error('Error during table cleanup:', {
+        error,
+        stack: (error as Error).stack,
+        type: typeof error
+      });
+      throw error;
+    }
+
+    console.log('=== Database Cleanup Complete ===\n');
   },
 
   /**

@@ -136,6 +136,39 @@ type MockQueryBuilder = {
   [key: string]: jest.Mock;
 };
 
+const createMockQueryBuilder = (table: string) => {
+  console.log('Creating mock query builder for table:', table);
+  
+  const queryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    upsert: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    not: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({
+      data: {
+        ...defaultResponses.profile,
+        role: 'user',
+        terms_accepted: true,
+        newsletter_subscribed: false
+      },
+      error: null
+    })
+  };
+
+  // Make the chain thenable
+  const thenable = {
+    then: (onFulfilled: any, onRejected: any) => 
+      Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected)
+  };
+
+  // Return enhanced query builder with thenable behavior
+  return Object.assign(queryBuilder, thenable);
+};
+
 // Update the Supabase mock
 export const mockSupabase = {
   auth: {
@@ -148,25 +181,7 @@ export const mockSupabase = {
   from: jest.fn().mockImplementation((table: string) => {
     console.log(`Creating mock query builder for table: ${table}`);
     
-    const queryBuilder = {
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      upsert: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      neq: jest.fn().mockReturnThis(),
-      not: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({
-        data: {
-          ...defaultResponses.profile,
-          role: 'user',
-          terms_accepted: true,
-          newsletter_subscribed: false
-        },
-        error: null
-      })
-    };
+    const queryBuilder = createMockQueryBuilder(table);
 
     return {
       ...queryBuilder,
