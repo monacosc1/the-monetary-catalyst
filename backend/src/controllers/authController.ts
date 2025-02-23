@@ -14,7 +14,6 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
   try {
     const { email, password, first_name, last_name, termsAccepted } = req.body;
     
-    // Add logging
     console.log('Registration request received:', {
       email,
       first_name,
@@ -35,11 +34,10 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
       });
     }
 
-    // Create user in Supabase Auth
+    // Create auth user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
       user_metadata: {
         first_name,
         last_name
@@ -47,15 +45,34 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     });
 
     if (authError) {
-      console.error('Supabase Auth error:', authError);
+      console.error('Auth user creation error:', authError);
       res.status(400).json({ message: authError.message });
       return;
     }
 
-    // After auth user creation
     console.log('Auth user created:', {
       userId: authData.user.id,
       email: authData.user.email
+    });
+
+    // Check for existing newsletter subscription
+    console.log('Checking for existing newsletter subscription...');
+    const { data: newsletterSubscription, error: newsletterError } = await supabase
+      .from(TABLES.NEWSLETTER_USERS)
+      .select('id, status')
+      .eq('email', email)
+      .single();
+
+    if (newsletterError) {
+      console.warn('Error checking newsletter subscription:', newsletterError);
+      // Don't fail registration - continue with newsletter_subscribed false
+    }
+
+    const isNewsletterSubscribed = newsletterSubscription?.status === 'active';
+    console.log('Newsletter subscription status:', {
+      exists: !!newsletterSubscription,
+      status: newsletterSubscription?.status,
+      isSubscribed: isNewsletterSubscribed
     });
 
     // Before profile creation attempt
@@ -71,64 +88,78 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         user_id: authData.user.id,
         email,
         first_name,
-        last_name
+        last_name,
+        newsletter_subscribed: isNewsletterSubscribed
       }
     });
 
-    // After auth user creation and existing profile check...
+    // Create or update profile with newsletter status
+    const profileData = {
+      user_id: authData.user.id,
+      email,
+      first_name,
+      last_name,
+      role: 'user',
+      terms_accepted: termsAccepted,
+      newsletter_subscribed: isNewsletterSubscribed
+    };
+
+    let profile;
     if (existingProfileCheck) {
-      // Update existing profile instead of trying to insert
-      const { data: profile, error: profileError } = await supabase
+      console.log('Updating existing profile with:', profileData);
+      const { data: updatedProfile, error: profileError } = await supabase
         .from(TABLES.USER_PROFILES)
-        .update({
-          email,
-          first_name,
-          last_name,
-          role: 'user',
-          terms_accepted: termsAccepted,
-          newsletter_subscribed: false
-        })
+        .update(profileData)
         .eq('user_id', authData.user.id)
         .select()
         .single();
 
-      // Add logging for profile result
-      if (profile) {
-        console.log('Profile updated successfully:', profile);
-      }
       if (profileError) {
         console.error('Profile update error:', profileError);
-        // If profile update fails, clean up the auth user
         await supabase.auth.admin.deleteUser(authData.user.id);
         res.status(500).json({ message: 'Error updating user profile' });
         return;
       }
+      profile = updatedProfile;
+      console.log('Profile updated successfully:', profile);
     } else {
-      // Create new profile if one doesn't exist
-      const { data: profile, error: profileError } = await supabase
+      console.log('Creating new profile with:', profileData);
+      const { data: newProfile, error: profileError } = await supabase
         .from(TABLES.USER_PROFILES)
-        .insert({
-          user_id: authData.user.id,
-          email,
-          first_name,
-          last_name,
-          role: 'user',
-          terms_accepted: termsAccepted,
-          newsletter_subscribed: false
-        })
+        .insert(profileData)
         .select()
         .single();
 
-      // Add logging for profile result
-      if (profile) {
-        console.log('Profile created successfully:', profile);
-      }
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        // If profile creation fails, clean up the auth user
         await supabase.auth.admin.deleteUser(authData.user.id);
         res.status(500).json({ message: 'Error creating user profile' });
         return;
+      }
+      profile = newProfile;
+      console.log('Profile created successfully:', profile);
+    }
+
+    // Link newsletter subscription if exists
+    if (newsletterSubscription) {
+      console.log('Linking newsletter subscription to user:', {
+        newsletter_id: newsletterSubscription.id,
+        user_id: authData.user.id
+      });
+
+      const { error: updateError } = await supabase
+        .from(TABLES.NEWSLETTER_USERS)
+        .update({
+          user_id: authData.user.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', email);
+
+      if (updateError) {
+        console.error('Error linking newsletter subscription:', updateError);
+        // Don't throw - we still want to complete registration
+      } else {
+        console.log('Newsletter subscription linked successfully');
       }
     }
 
@@ -136,15 +167,19 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
     emailService.sendWelcomeEmail(email, first_name)
       .catch(error => console.error('Welcome email error:', error));
 
-    res.status(201).json({
+    const responseData = {
       message: 'User registered successfully',
       user: {
         id: authData.user.id,
         email,
         first_name,
-        last_name
+        last_name,
+        newsletter_subscribed: isNewsletterSubscribed
       }
-    });
+    };
+    console.log('Sending registration response:', responseData);
+
+    res.status(201).json(responseData);
   } catch (error) {
     console.error('Register error:', error);
     next(error);

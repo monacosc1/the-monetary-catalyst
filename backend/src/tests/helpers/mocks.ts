@@ -3,6 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 import { signToken } from '../../services/jwtService';
 import { emailService } from '../../services/emailService';
 
+// Add the interface at the top of the file
+interface MockResponse extends Partial<Response> {
+  status: jest.Mock;
+  json: jest.Mock;
+  send: jest.Mock;
+}
+
 // Export the type
 export type AuthResponse = {
   data: {
@@ -39,12 +46,13 @@ export const mockHelper = {
     ...data
   }),
 
-  createMockResponse: (): Partial<Response> => {
-    const res: Partial<Response> = {};
-    res.status = jest.fn().mockReturnValue(res);
-    res.json = jest.fn().mockReturnValue(res);
-    res.send = jest.fn().mockReturnValue(res);
-    return res;
+  createMockResponse: (): MockResponse => {
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis()
+    };
+    return res as MockResponse;
   },
 
   createMockNext: (): NextFunction => jest.fn(),
@@ -149,24 +157,15 @@ const createMockQueryBuilder = (table: string) => {
     neq: jest.fn().mockReturnThis(),
     not: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({
-      data: {
-        ...defaultResponses.profile,
-        role: 'user',
-        terms_accepted: true,
-        newsletter_subscribed: false
-      },
+      data: null,
       error: null
-    })
+    }),
+    then: jest.fn().mockImplementation((onFulfilled) => 
+      Promise.resolve({ data: null, error: null }).then(onFulfilled)
+    )
   };
 
-  // Make the chain thenable
-  const thenable = {
-    then: (onFulfilled: any, onRejected: any) => 
-      Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected)
-  };
-
-  // Return enhanced query builder with thenable behavior
-  return Object.assign(queryBuilder, thenable);
+  return queryBuilder;
 };
 
 // Update the Supabase mock
@@ -202,7 +201,20 @@ export const mockSupabase = {
   })
 };
 
-// Update resetMocks to remove the from.mockReset() call
+// Update/centralize email service mock
+export const mockEmailService = {
+  sendNewsletterWelcomeEmail: jest.fn().mockResolvedValue(true),
+  sendNewsletterWelcomeBackEmail: jest.fn().mockResolvedValue(true),
+  validateEmail: jest.fn().mockResolvedValue(true),
+  sendWelcomeEmail: jest.fn().mockResolvedValue(true)
+};
+
+// Single source of truth for email service mock
+jest.mock('../../services/emailService', () => ({
+  emailService: mockEmailService
+}));
+
+// Update resetMocks to safely clear email mocks
 export const resetMocks = () => {
   // Capture the original 'from' implementation
   const originalFrom = mockSupabase.from;
@@ -219,8 +231,11 @@ export const resetMocks = () => {
 
   // Reset JWT and email service mocks
   (signToken as jest.Mock).mockReturnValue('test-jwt-token');
-  (emailService.sendWelcomeEmail as jest.Mock).mockResolvedValue(true);
-  (emailService.validateEmail as jest.Mock).mockResolvedValue(true);
+  Object.values(mockEmailService).forEach(mock => {
+    if (jest.isMockFunction(mock)) {
+      mock.mockClear();
+    }
+  });
 
   // Reset the query builder methods when recreated
   const queryBuilder = mockSupabase.from('reset');
@@ -248,8 +263,5 @@ jest.mock('../../services/jwtService', () => ({
 }));
 
 jest.mock('../../services/emailService', () => ({
-  emailService: {
-    sendWelcomeEmail: jest.fn().mockResolvedValue(true),
-    validateEmail: jest.fn().mockResolvedValue(true)
-  }
+  emailService: mockEmailService
 }));

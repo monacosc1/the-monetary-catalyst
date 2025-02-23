@@ -328,11 +328,19 @@ it('should successfully login user', async () => {
 ```
 
 ### 5. Testing getUserProfile
-Separate test file getUserProfile.test.ts focuses solely on fetching a profile:
+The purpose of getUserProfile.test.ts is:
+- Focuses exclusively on the logic for retrieving a user’s profile.
+- Validates that when the request contains a valid user (attached to req.user), the controller retrieves the correct profile from the USER_PROFILES table and returns it (HTTP 200).
+- Additionally, it tests the behavior when:
+  - No user is attached (should return 401 Unauthorized)
+  - A database error occurs (should return 500)
+  - The profile is not found (should return 404)
 
-Validate that when a valid user is attached to the request, the profile is fetched from test_user_profiles and returned with status 200.
-Verify proper error handling (e.g., missing user → 401, database errors → 500, profile not found → 404).
-```
+Separate test file getUserProfile.test.ts focuses solely on fetching a profile:
+- Validate that when a valid user is attached to the request, the profile is fetched from test_user_profiles and returned with status 200.
+- Verify proper error handling (e.g., missing user → 401, database errors → 500, profile not found → 404).
+
+```typescript
 describe('Auth Controller - Get User Profile', () => {
   beforeEach(async () => {
     await databaseHelper.cleanTables();
@@ -361,43 +369,150 @@ describe('Auth Controller - Get User Profile', () => {
 });
 ```
 
-### 6. Testing Newsletter Subscription
+### 6. Testing Registration
+In registerUser.test.ts, we test:
+- Registration of newsletter subscribers (links accounts, preserves subscription)
+- Cross-table synchronization between auth.users, user_profiles, and newsletter_users
+The purpose of registerUser.test.ts is:
+- Verifies the complete registration flow.
+- Ensures that when a new user submits valid registration data (email, password, first/last name, terms acceptance), the backend:
+  - Creates an auth user using supabase.auth.admin.createUser
+  - Checks for an existing profile in the USER_PROFILES (or test version thereof) table
+  - Inserts a new profile (or updates an existing one) accordingly
+  - Fires off a welcome email (fire-and-forget)
+- Also tests error scenarios (e.g. duplicate email, missing terms, invalid email format).
+- Should test the complete registration flow for full users.
+- It must simulate cases where the email is new (resulting in creation of both auth and user_profiles records) and error scenarios (e.g., duplicate email, missing required fields, invalid email format).
+- It should also cover the case when a user who is already a newsletter subscriber registers fully—verifying that the newsletter_users table is updated accordingly (linking the user ID and setting the newsletter_subscribed flag).
+
+### 7. Testing Login
+The purpose of login.test.ts is: 
+- Tests the login flow by simulating a call to supabase.auth.signInWithPassword.
+- Verifies that when correct credentials are provided, the controller fetches the corresponding user profile and returns a successful response including a JWT token.
+- Also confirms that invalid credentials or profile fetch errors are handled appropriately.
+
+### 8. Testing Newsletter Subscription
 In the separate newsletter test file (e.g., subscribe.test.ts), we test:
 
 - Successful subscription for a new user.
 - Handling of duplicate subscriptions.
 - Invalid email format.
 - Missing required fields.
+- Subscription for existing registered users (updates both tables).
+- Reactivation of previously unsubscribed users.
+- Cross-table synchronization between newsletter_users and user_profiles.
+- Database error handling during profile checks.
+- Should test the newsletter subscription flow independently.
+It should simulate a new newsletter signup (adding a row to newsletter_users with no auth account), as well as:
+- Handling duplicate subscriptions.
+- Invalid email formats.
+- Missing required fields.
+- The scenario where an already registered user subscribes to the newsletter (ensuring that the system updates both newsletter_users and user_profiles appropriately).
+- Reactivation of previously unsubscribed users.
+These tests cover the standalone newsletter subscription flow. They ensure that:
+- A new subscriber (providing only email and name) is added to the newsletter_users table.
+- Duplicate subscriptions are handled gracefully.
+- Invalid input (e.g., malformed email, missing fields) results in an error.
+- For existing registered users, the process updates the subscription status in both the newsletter_users table and the user_profiles table if necessary.
+```typescript
+// In subscribe.test.ts
+it('should subscribe new user to newsletter', async () => {
+  const testSubscription = {
+    email: 'test@example.com',
+    name: 'Test User',
+    source: 'website'
+  };
+
+  // Ensure the subscriber does not already exist:
+  mockSupabase.from('test_newsletter_users').mockSuccess(null);
+
+  // Mock the insertion of a new subscriber:
+  mockSupabase.from('test_newsletter_users').mockSuccess({
+    id: 1,
+    email: testSubscription.email,
+    name: testSubscription.name,
+    source: testSubscription.source,
+    status: 'active',
+    subscribed_at: expect.any(String)
+  });
+
+  const mockReq = mockHelper.createMockRequest({ body: testSubscription });
+  const mockRes = mockHelper.createMockResponse();
+
+  await subscribeToNewsletter(mockReq as any, mockRes as any);
+
+  expect(mockRes.status).toHaveBeenCalledWith(201);
+  expect(mockRes.json).toHaveBeenCalledWith(
+    expect.objectContaining({
+      success: true,
+      message: expect.stringContaining('Successfully subscribed')
+    })
+  );
+  expect(emailService.sendNewsletterWelcomeEmail)
+    .toHaveBeenCalledWith(testSubscription.email, testSubscription.name);
+});
+```
+
+### 9. Testing Registration with Newsletter Subscriber Conversion
+The purpose:
+- This set of tests verifies the complete registration flow, including the handling of newsletter subscribers. It ensures that:
+- When a new full registration is performed, an auth user is created and a corresponding profile is inserted or updated.
+- If the email already exists as a newsletter subscriber, the profile’s newsletter_subscribed field is set to true and the newsletter subscription record is updated (linked with the new user ID).
 
 ```typescript
-describe('Newsletter Controller - Subscribe', () => {
-  beforeEach(async () => {
-    await databaseHelper.cleanTables();
-    resetMocks();
-  });
+// In registerUser.test.ts
+it('should handle registration for existing newsletter subscriber', async () => {
+  // Test data simulating a newsletter subscriber:
+  const testUser = {
+    email: 'test@example.com',
+    password: 'Password123!',
+    first_name: 'Test',
+    last_name: 'User',
+    termsAccepted: true
+  };
 
-  it('should subscribe new user to newsletter', async () => {
-    const testSubscription = { email: 'test@example.com', name: 'Test User', source: 'website' };
-    // Mock subscriber check and insertion
-    mockSupabase.from('test_newsletter_users').mockSuccess(null); // No existing subscriber
-    mockSupabase.from('test_newsletter_users').mockSuccess({
-      id: 1,
-      email: testSubscription.email,
-      name: testSubscription.name,
-      source: testSubscription.source,
-      status: 'active',
-      subscribed_at: expect.any(String)
-    });
-    const mockReq = mockHelper.createMockRequest({ body: testSubscription });
-    const mockRes = mockHelper.createMockResponse();
-    await subscribeToNewsletter(mockReq as any, mockRes as any);
-    expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, message: expect.stringContaining('Successfully subscribed') })
-    );
-    expect(emailService.sendNewsletterWelcomeEmail).toHaveBeenCalledWith(testSubscription.email, testSubscription.name);
-  });
-  // ... additional tests for duplicate subscription, invalid email, and missing fields.
+  // Mock auth user creation
+  const mockAuthData = {
+    data: {
+      user: {
+        id: TEST_USER_ID,
+        email: testUser.email
+      }
+    },
+    error: null
+  };
+  mockSupabase.auth.admin.createUser.mockResolvedValueOnce(mockAuthData);
+
+  // Simulate an existing newsletter subscription:
+  const mockNewsletterData = {
+    id: 1,
+    email: testUser.email,
+    status: 'active'
+  };
+  // This mock will be used when the newsletter_users table is queried:
+  mockSupabase.from(TABLES.NEWSLETTER_USERS)
+    .mockSuccess(mockNewsletterData);
+
+  // Configure the profile query builder to return a profile with newsletter_subscribed set to true:
+  setupMockFrom(testUser, { exists: false, newsletterSubscribed: true });
+
+  const mockReq = mockHelper.createMockRequest({ body: testUser });
+  const mockRes = mockHelper.createMockResponse();
+  const mockNext = mockHelper.createMockNext();
+
+  await registerUser(mockReq as any, mockRes as any, mockNext);
+
+  // The final response should include a profile with newsletter_subscribed: true
+  expect(mockRes.status).toHaveBeenCalledWith(201);
+  expect(mockRes.json).toHaveBeenCalledWith(
+    expect.objectContaining({
+      message: 'User registered successfully',
+      user: expect.objectContaining({
+        email: testUser.email,
+        newsletter_subscribed: true
+      })
+    })
+  );
 });
 ```
 
@@ -440,30 +555,31 @@ npm test -- --coverage
 
 ### 1. Auth Testing
 ```typescript
-// Test authentication flow
+// Test full registration flow, including newsletter subscriber conversion.
+// This verifies that when a user registers, an auth user is created,
+// a profile is inserted/updated with the correct newsletter_subscribed flag,
+// and the newsletter subscription (if present) is linked appropriately.
 const { user, profile } = await authHelper.createAuthenticatedUser(testUser);
 expect(user).toBeTruthy();
+expect(profile.newsletter_subscribed).toBe(expectedNewsletterStatus);
 ```
 
 ### 2. Database Verification
 ```typescript
-// Verify database state
+// Verify database state in test-specific tables.
 const { data: dbRecord } = await testSupabase
   .from('test_user_profiles')
   .select()
   .eq('id', recordId)
   .single();
-
 expect(dbRecord).toMatchObject(expectedData);
 ```
 
 ### 3. Error Handling
 ```typescript
-// Test error scenarios
+// Simulate and verify error scenarios.
 mockSupabase.from('test_user_profiles').mockError('Database error');
-
 await someFunction(mockReq, mockRes, mockNext);
-
 expect(mockRes.status).toHaveBeenCalledWith(500);
 expect(mockRes.json).toHaveBeenCalledWith(
   expect.objectContaining({
@@ -525,4 +641,17 @@ cleanupChain.then(() => console.log('Cleanup successful')).catch(err => console.
 // Finally, restore the global mock after test execution:
 mockSupabase.from.mockReset();
 mockSupabase.from.mockImplementation(originalFromImpl);
+```
+
+### 5. Newsletter Subscription Testing
+```typescript
+// For newsletter-specific flows, ensure that the correct tables are updated,
+// the subscriber is created without full authentication credentials,
+// and cross-table synchronization (if applicable) is maintained.
+const { data: newsletterRecord } = await testSupabase
+  .from('test_newsletter_users')
+  .select()
+  .eq('email', subscriberEmail)
+  .single();
+expect(newsletterRecord).toMatchObject(expectedNewsletterData);
 ```
