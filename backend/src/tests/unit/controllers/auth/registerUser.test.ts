@@ -4,6 +4,13 @@ import { databaseHelper } from '../../../helpers/database';
 import { emailService } from '../../../../services/emailService';
 import { userFixtures, generateUniqueUser } from '../../../fixtures/users';
 import { TABLES } from '../../../../config/tables';
+import { Response } from 'express';
+
+interface MockResponse extends Partial<Response> {
+  status: jest.Mock;
+  json: jest.Mock;
+  send: jest.Mock;
+}
 
 // Mock email service
 jest.mock('../../../../services/emailService', () => ({
@@ -12,6 +19,12 @@ jest.mock('../../../../services/emailService', () => ({
     validateEmail: jest.fn().mockResolvedValue(true)
   }
 }));
+
+// Add this interface at the top of the file
+interface ProfileQueryOptions {
+  exists: boolean;
+  newsletterSubscribed: boolean;
+}
 
 describe('Auth Controller - Register User', () => {
   // Capture original implementation properly with type safety
@@ -68,7 +81,12 @@ describe('Auth Controller - Register User', () => {
     console.log('=== Test Cleanup Complete ===\n');
   });
 
-  const setupProfileQueryBuilder = (testUser: any, options = { exists: false }) => {
+  const setupProfileQueryBuilder = (testUser: any, options: ProfileQueryOptions = { 
+    exists: false, 
+    newsletterSubscribed: false 
+  }) => {
+    console.log('Setting up profile query builder with options:', options);
+    
     return {
       select: jest.fn().mockReturnThis(),
       insert: jest.fn().mockReturnThis(),
@@ -93,14 +111,17 @@ describe('Auth Controller - Register User', () => {
             last_name: testUser.last_name,
             role: 'user',
             terms_accepted: true,
-            newsletter_subscribed: false
+            newsletter_subscribed: options.newsletterSubscribed
           },
           error: null
         })
     };
   };
 
-  const setupMockFrom = (testUser: any, options = { exists: false }) => {
+  const setupMockFrom = (testUser: any, options: ProfileQueryOptions = { 
+    exists: false, 
+    newsletterSubscribed: false 
+  }) => {
     console.log('\n=== Setting up Mock Query Builder ===');
     const qb = setupProfileQueryBuilder(testUser, options);
     console.log('Custom query builder:', {
@@ -144,7 +165,10 @@ describe('Auth Controller - Register User', () => {
       error: null
     });
 
-    setupMockFrom(testUser);
+    setupMockFrom(testUser, { 
+      exists: false, 
+      newsletterSubscribed: false 
+    });
 
     const mockReq = mockHelper.createMockRequest({
       body: {
@@ -187,7 +211,10 @@ describe('Auth Controller - Register User', () => {
       }
     });
 
-    setupMockFrom(testUser, { exists: true });
+    setupMockFrom(testUser, { 
+      exists: true, 
+      newsletterSubscribed: false 
+    });
 
     const mockReq = mockHelper.createMockRequest({
       body: {
@@ -244,5 +271,113 @@ describe('Auth Controller - Register User', () => {
     expect(mockRes.json).toHaveBeenCalledWith({
       error: expect.stringContaining('valid email')
     });
+  });
+
+  it('should handle registration for existing newsletter subscriber', async () => {
+    console.log('\n=== Starting Newsletter Subscriber Registration Test ===');
+    
+    const testUser = {
+      email: 'test@example.com',
+      password: 'Password123!',
+      first_name: 'Test',
+      last_name: 'User',
+      termsAccepted: true
+    };
+    console.log('Test user data:', testUser);
+
+    // Mock auth user creation
+    const mockAuthData = {
+      data: {
+        user: {
+          id: TEST_USER_ID,
+          email: testUser.email
+        }
+      },
+      error: null
+    };
+    console.log('Mocking auth user creation with:', mockAuthData);
+    mockSupabase.auth.admin.createUser.mockResolvedValueOnce(mockAuthData);
+
+    // Mock existing newsletter subscription
+    const mockNewsletterData = {
+      id: 1,
+      email: testUser.email,
+      status: 'active'
+    };
+    console.log('Mocking newsletter subscription with:', mockNewsletterData);
+    
+    // Create persistent mocks that we can reference later
+    const newsletterMocks = {
+      update: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValueOnce({ 
+        data: mockNewsletterData, 
+        error: null 
+      })
+    };
+
+    // Important: This mock needs to be set up before the registration call
+    mockSupabase.from.mockImplementation((table: string) => {
+      console.log('Query builder requested for table:', table);
+      
+      if (table === TABLES.NEWSLETTER_USERS) {
+        console.log('Using newsletter-specific query builder');
+        return {
+          ...originalFromImpl(table),
+          ...newsletterMocks  // Use our persistent mocks
+        };
+      }
+      
+      if (table === TABLES.USER_PROFILES) {
+        console.log('Using profile-specific query builder');
+        return setupProfileQueryBuilder(testUser, {
+          exists: false,
+          newsletterSubscribed: true
+        });
+      }
+
+      console.log('Using original query builder');
+      return originalFromImpl(table);
+    });
+
+    const mockReq = mockHelper.createMockRequest({
+      body: testUser
+    });
+    const mockRes = mockHelper.createMockResponse();
+    const mockNext = mockHelper.createMockNext();
+
+    console.log('Calling registerUser...');
+    await registerUser(mockReq as any, mockRes as any, mockNext);
+
+    // Log the response data for debugging
+    console.log('Response status calls:', mockRes.status.mock.calls);
+    console.log('Response json calls:', mockRes.json.mock.calls);
+
+    // Verify the response
+    expect(mockRes.status).toHaveBeenCalledWith(201);
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'User registered successfully',
+        user: expect.objectContaining({
+          email: testUser.email,
+          first_name: testUser.first_name,
+          last_name: testUser.last_name,
+          newsletter_subscribed: true
+        })
+      })
+    );
+
+    // Verify newsletter subscription was linked
+    console.log('Verifying newsletter update was called...');
+    console.log('Newsletter update calls:', newsletterMocks.update.mock.calls);
+    
+    expect(newsletterMocks.update.mock.calls.length).toBeGreaterThan(0);
+    expect(newsletterMocks.update.mock.calls[0][0]).toMatchObject({
+      user_id: TEST_USER_ID,
+      updated_at: expect.any(String)
+    });
+
+    console.log('=== Newsletter Subscriber Registration Test Complete ===\n');
   });
 }); 
