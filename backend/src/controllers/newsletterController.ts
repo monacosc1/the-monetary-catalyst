@@ -27,12 +27,31 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
       return;
     }
 
+    // Check existing user profile
+    const { data: existingUserProfile, error: profileError } = await supabase
+      .from(TABLES.USER_PROFILES)
+      .select('user_id, newsletter_subscribed')
+      .eq('email', email)
+      .single();
+
+    // Handle database errors during profile check
+    if (profileError) {
+      console.error('Error checking existing user profile:', profileError);
+      throw profileError;
+    }
+
     // Check if email already exists in newsletter_users
-    const { data: existingSubscriber } = await supabase
+    const { data: existingSubscriber, error: subscriberError } = await supabase
       .from(TABLES.NEWSLETTER_USERS)
       .select('id, status')
       .eq('email', email)
       .single();
+
+    // Handle database errors during subscriber check
+    if (subscriberError && subscriberError.code !== 'PGRST116') { // Ignore "not found" error
+      console.error('Error checking existing subscriber:', subscriberError);
+      throw subscriberError;
+    }
 
     if (existingSubscriber) {
       if (existingSubscriber.status === 'active') {
@@ -50,7 +69,8 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
             name,
             source,
             updated_at: new Date().toISOString(),
-            unsubscribed_at: null
+            unsubscribed_at: null,
+            user_id: existingUserProfile?.user_id || null // Link to user profile if exists
           })
           .eq('email', email)
           .select()
@@ -70,7 +90,7 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
       }
     }
 
-    // Create new subscriber
+    // Create/update newsletter subscription
     const { data, error } = await supabase
       .from(TABLES.NEWSLETTER_USERS)
       .insert({
@@ -78,12 +98,24 @@ export const subscribeToNewsletter = async (req: Request, res: Response): Promis
         name,
         source,
         status: 'active',
-        subscribed_at: new Date().toISOString()
+        subscribed_at: new Date().toISOString(),
+        user_id: existingUserProfile?.user_id || null
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Update user profile if exists
+    if (existingUserProfile) {
+      await supabase
+        .from(TABLES.USER_PROFILES)
+        .update({
+          newsletter_subscribed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', existingUserProfile.user_id);
+    }
 
     // Send welcome email
     await emailService.sendNewsletterWelcomeEmail(email, name);
