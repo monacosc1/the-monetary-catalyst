@@ -24,6 +24,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,6 +36,7 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
 
     setIsProcessing(true)
     setError(null)
+    setMessage(null)
 
     const { error: submitError } = await stripe.confirmSetup({
       elements,
@@ -47,6 +49,8 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
       setError(submitError.message || 'An error occurred')
       setIsProcessing(false)
     } else {
+      setMessage('Payment method updated successfully')
+      setTimeout(() => setMessage(''), 3000) // Clear after 3 seconds
       onSuccess()
     }
   }
@@ -57,6 +61,11 @@ function PaymentForm({ onSuccess }: { onSuccess: () => void }) {
       {error && (
         <div className="mt-4 text-red-600 text-sm">
           {error}
+        </div>
+      )}
+      {message && (
+        <div className="mt-4 text-green-600 text-sm">
+          {message}
         </div>
       )}
       <button
@@ -143,7 +152,7 @@ export default function PaymentDetails({ userId }: { userId: string }) {
       
       {currentCard && !showUpdateForm && (
         <div className="mb-6">
-          <h4 className="text-sm font-medium text-gray-600">Current Card</h4>
+          <h4 className="text-sm font-medium text-gray-600">Default Payment Method</h4>
           <div className="mt-1 text-gray-900">
             {currentCard.brand} ending in {currentCard.last4}
             <br />
@@ -152,18 +161,30 @@ export default function PaymentDetails({ userId }: { userId: string }) {
         </div>
       )}
 
+      {!currentCard && !showUpdateForm && (
+        <div className="mb-6 text-gray-600">
+          No payment method on file.{' '}
+          <button 
+            onClick={handleUpdateClick} 
+            className="text-primary hover:text-accent1 underline"
+          >
+            Add Payment Method
+          </button>
+        </div>
+      )}
+
       {!showUpdateForm ? (
         <button
           onClick={handleUpdateClick}
           className="w-full bg-primary hover:bg-accent1 text-white font-bold py-2 px-4 rounded transition-colors"
         >
-          Update Payment Method
+          {currentCard ? 'Update Payment Method' : 'Add Payment Method'}
         </button>
       ) : clientSecret ? (
         <Elements stripe={stripePromise} options={{ clientSecret }}>
           <PaymentForm onSuccess={() => {
-            setShowUpdateForm(false)
-            fetchCurrentCard()
+            setShowUpdateForm(false);
+            fetchCurrentCard();
           }} />
         </Elements>
       ) : null}

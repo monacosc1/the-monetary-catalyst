@@ -1,5 +1,7 @@
+// /backend/src/services/paymentService.ts
 import { Stripe } from 'stripe';
 import supabase from '../config/supabase';
+import { TABLES } from '../config/tables'; // Import TABLES
 
 interface CreatePaymentParams {
   userId: string | null;
@@ -27,7 +29,7 @@ export class PaymentService {
     });
 
     const { data: payment, error: paymentError } = await supabase
-      .from('payments')
+      .from(TABLES.PAYMENTS) // Use TABLES.PAYMENTS instead of "payments"
       .insert({
         user_id: userId,
         subscription_id: subscriptionId,

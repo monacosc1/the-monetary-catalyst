@@ -1,16 +1,17 @@
-import { AuthError as SupabaseAuthError } from '@supabase/supabase-js';
+// /backend/src/tests/helpers/mocks.ts
+import { AuthError as SupabaseAuthError, PostgrestSingleResponse, PostgrestError } from '@supabase/supabase-js';
 import { Request, Response, NextFunction } from 'express';
 import { signToken } from '../../services/jwtService';
 import { emailService } from '../../services/emailService';
 
-// Add the interface at the top of the file
+// MockResponse interface for Express response mocks
 interface MockResponse extends Partial<Response> {
   status: jest.Mock;
   json: jest.Mock;
   send: jest.Mock;
 }
 
-// Export the type
+// AuthResponse type for Supabase auth responses
 export type AuthResponse = {
   data: {
     user: {
@@ -36,9 +37,8 @@ export type AuthResponse = {
   error: (SupabaseAuthError | Error) | null;
 };
 
-// Combine all mock helpers into one object
+// Mock helpers for requests, responses, and utilities
 export const mockHelper = {
-  // Request/Response helpers
   createMockRequest: (data: any = {}): Partial<Request> => ({
     body: {},
     query: {},
@@ -57,7 +57,6 @@ export const mockHelper = {
 
   createMockNext: (): NextFunction => jest.fn(),
 
-  // Stripe helpers
   stripe: {
     createCheckoutSession: {
       success: {
@@ -68,19 +67,20 @@ export const mockHelper = {
     }
   },
 
-  // SendGrid helpers
   sendgrid: {
     sendEmail: {
       success: { statusCode: 202 },
       error: new Error('Email sending failed')
     }
-  }
+  },
+
+  cleanTables: jest.fn(() => Promise.resolve())
 };
 
-// Use SupabaseAuthError if defined; otherwise, fallback to native Error.
+// Fallback to native Error if SupabaseAuthError isn’t available
 const BaseAuthError = typeof SupabaseAuthError !== 'undefined' ? SupabaseAuthError : Error;
 
-// Create a proper AuthError class
+// Custom AuthError class for mock errors
 class TestAuthError extends Error {
   public name: string;
   public status: number;
@@ -95,18 +95,17 @@ class TestAuthError extends Error {
   }
 }
 
-// Update the helper to use the class
 export const createAuthError = (message: string, status = 400): Error => {
   return new TestAuthError(message, status);
 };
 
-// At the top, add:
+// Consistent test user ID
 export const TEST_USER_ID = '123e4567-e89b-12d3-a456-426614174000';
 
-// Update defaultResponses
+// Default mock responses
 const defaultResponses = {
   profile: {
-    user_id: TEST_USER_ID,  // Use consistent UUID
+    user_id: TEST_USER_ID,
     created_at: new Date().toISOString(),
     email: 'test@example.com',
     google_id: null,
@@ -120,7 +119,7 @@ const defaultResponses = {
   },
   auth: {
     user: {
-      id: TEST_USER_ID,  // Use same UUID
+      id: TEST_USER_ID,
       aud: 'authenticated',
       role: 'authenticated',
       email: 'test@example.com',
@@ -135,40 +134,82 @@ const defaultResponses = {
   }
 };
 
-// Update the query builder type to include upsert
+// Query builder type for Supabase mock
 type MockQueryBuilder = {
-  select: jest.Mock;
-  eq: jest.Mock;
-  single: jest.Mock;
-  upsert: jest.Mock;  // Add upsert
-  [key: string]: jest.Mock;
+  select: jest.Mock<MockQueryBuilder>;
+  insert: jest.Mock<MockQueryBuilder>;
+  update: jest.Mock<MockQueryBuilder>;
+  delete: jest.Mock<MockQueryBuilder>;
+  upsert: jest.Mock<MockQueryBuilder>;
+  eq: jest.Mock<MockQueryBuilder>;
+  neq: jest.Mock<MockQueryBuilder>;
+  not: jest.Mock<MockQueryBuilder>;
+  single: jest.Mock<Promise<PostgrestSingleResponse<any>>>;
+  then: jest.Mock;
 };
 
-const createMockQueryBuilder = (table: string) => {
-  console.log('Creating mock query builder for table:', table);
+// Create a mock query builder for Supabase operations
+export const createMockQueryBuilder = (table: string): MockQueryBuilder => {
+  console.log('createMockQueryBuilder called for table:', table);
   
-  const queryBuilder = {
-    select: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    delete: jest.fn().mockReturnThis(),
-    upsert: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    neq: jest.fn().mockReturnThis(),
-    not: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({
-      data: null,
-      error: null
+  const queryBuilder: MockQueryBuilder = {
+    select: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`select called for table "${table}" with arguments:`, args);
+      return queryBuilder;
     }),
-    then: jest.fn().mockImplementation((onFulfilled) => 
-      Promise.resolve({ data: null, error: null }).then(onFulfilled)
+    insert: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`insert called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    update: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`update called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    delete: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`delete called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    upsert: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`upsert called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    eq: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`eq called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    neq: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`neq called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    not: jest.fn().mockImplementation((...args: any[]) => {
+      console.log(`not called for table "${table}" with arguments:`, args);
+      return queryBuilder;
+    }),
+    single: jest.fn().mockImplementation(() => {
+      console.log(`single called for table "${table}"`);
+      return Promise.resolve({
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: 'OK'
+      } as PostgrestSingleResponse<any>);
+    }),
+    then: jest.fn().mockImplementation((onFulfilled: any) =>
+      Promise.resolve({
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: 'OK'
+      } as PostgrestSingleResponse<any>).then(onFulfilled)
     )
   };
 
   return queryBuilder;
 };
 
-// Update the Supabase mock
+// Supabase mock object
 export const mockSupabase = {
   auth: {
     signInWithPassword: jest.fn(),
@@ -178,30 +219,45 @@ export const mockSupabase = {
     }
   },
   from: jest.fn().mockImplementation((table: string) => {
-    console.log(`Creating mock query builder for table: ${table}`);
+    console.log(`mockSupabase.from called for table: ${table}`);
     
     const queryBuilder = createMockQueryBuilder(table);
 
     return {
       ...queryBuilder,
       mockSuccess: (data: any) => {
-        console.log('mockSuccess called with:', data);
-        queryBuilder.single.mockResolvedValueOnce({ data, error: null });
+        console.log('mockSuccess called for table:', table, 'with:', data);
+        queryBuilder.single.mockResolvedValueOnce({
+          data,
+          error: null,
+          count: null,
+          status: 200,
+          statusText: 'OK'
+        } as PostgrestSingleResponse<any>);
         return queryBuilder;
       },
       mockError: (message: string) => {
-        console.log('mockError called with:', message);
+        console.log('mockError called for table:', table, 'with:', message);
         queryBuilder.single.mockResolvedValueOnce({
           data: null,
-          error: { message, code: 'TEST_ERROR' }
-        });
+          error: {
+            message,
+            code: 'TEST_ERROR',
+            details: null,
+            hint: null,
+            name: 'PostgrestError'
+          } as unknown as PostgrestError, // Cast to bypass strict type checking
+          count: null,
+          status: 400,
+          statusText: 'Bad Request'
+        } as PostgrestSingleResponse<any>);
         return queryBuilder;
       }
     };
   })
 };
 
-// Update/centralize email service mock
+// Email service mock
 export const mockEmailService = {
   sendNewsletterWelcomeEmail: jest.fn().mockResolvedValue(true),
   sendNewsletterWelcomeBackEmail: jest.fn().mockResolvedValue(true),
@@ -209,27 +265,29 @@ export const mockEmailService = {
   sendWelcomeEmail: jest.fn().mockResolvedValue(true)
 };
 
-// Single source of truth for email service mock
+// Mock external modules
 jest.mock('../../services/emailService', () => ({
   emailService: mockEmailService
 }));
 
-// Update resetMocks to safely clear email mocks
 export const resetMocks = () => {
-  // Capture the original 'from' implementation
+  console.log('resetMocks: Clearing all mocks...');
   const originalFrom = mockSupabase.from;
 
   jest.clearAllMocks();
 
-  // Restore the 'from' implementation
   mockSupabase.from = originalFrom;
 
-  // Reset auth methods
-  mockSupabase.auth.signInWithPassword.mockReset();
-  mockSupabase.auth.admin.createUser.mockReset();
-  mockSupabase.auth.admin.deleteUser.mockReset();
+  if (mockSupabase.auth.signInWithPassword) {
+    mockSupabase.auth.signInWithPassword.mockReset();
+  }
+  if (mockSupabase.auth.admin.createUser) {
+    mockSupabase.auth.admin.createUser.mockReset();
+  }
+  if (mockSupabase.auth.admin.deleteUser) {
+    mockSupabase.auth.admin.deleteUser.mockReset();
+  }
 
-  // Reset JWT and email service mocks
   (signToken as jest.Mock).mockReturnValue('test-jwt-token');
   Object.values(mockEmailService).forEach(mock => {
     if (jest.isMockFunction(mock)) {
@@ -237,7 +295,6 @@ export const resetMocks = () => {
     }
   });
 
-  // Reset the query builder methods when recreated
   const queryBuilder = mockSupabase.from('reset');
   if (queryBuilder) {
     Object.values(queryBuilder).forEach(method => {
@@ -248,11 +305,10 @@ export const resetMocks = () => {
   }
 };
 
-// Add at the top, before other jest.mock calls
+// Setup mocks
 console.log('=== Setting up Supabase mocks ===');
-
 jest.mock('@supabase/supabase-js', () => {
-  console.log('Creating Supabase mock');
+  console.log('Creating Supabase mock in mocks.ts');
   return {
     createClient: jest.fn(() => mockSupabase)
   };
@@ -260,8 +316,4 @@ jest.mock('@supabase/supabase-js', () => {
 
 jest.mock('../../services/jwtService', () => ({
   signToken: jest.fn().mockReturnValue('test-jwt-token')
-}));
-
-jest.mock('../../services/emailService', () => ({
-  emailService: mockEmailService
 }));
