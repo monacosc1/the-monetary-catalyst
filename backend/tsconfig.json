@@ -10,15 +10,13 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "types": ["jest", "node", "express"],
-    "typeRoots": ["./node_modules/@types", "./src/tests/types"]
+    "typeRoots": ["./node_modules/@types", "./src/types", "./src/tests/types"]
   },
   "include": [
     "src/**/*.ts",
     "src/express.d.ts",
-    "src/tests/**/*.ts" // Include all test files
+    "src/tests/**/*.ts",
+    "src/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist" // Remove "src/tests" and "**/*.test.ts" from exclude
-  ]
+  "exclude": ["node_modules", "dist"]
 }
