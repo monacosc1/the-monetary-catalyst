@@ -1,5 +1,5 @@
 import { testSupabase } from '../config/setup';
-import { AuthResponse } from '@supabase/supabase-js';
+import { Database } from '../../types/supabase'; // Added import
 import { TABLES } from '../../config/tables';
 
 export const databaseHelper = {
@@ -19,55 +19,20 @@ export const databaseHelper = {
   async cleanTables() {
     console.log('\n=== Database Cleanup Starting ===');
     
-    // Log query builder state before cleanup
-    const qb = testSupabase.from(TABLES.USER_PROFILES);
-    console.log('Initial query builder:', {
-      isQueryBuilderDefined: !!qb,
-      hasDelete: !!qb?.delete,
-      hasNot: !!qb?.not,
-      methods: qb ? Object.keys(qb) : 'undefined',
-      hasThenable: typeof qb?.then === 'function'
-    });
-
+    this.verifyTestEnvironment();
+  
     try {
-      console.log('Attempting to clean tables...');
-      
-      // Create and inspect the cleanup chain
-      const cleanupChain = testSupabase
+      const { error } = await testSupabase
         .from(TABLES.USER_PROFILES)
         .delete()
-        .not('user_id', 'is', null);
-        
-      console.log('Cleanup chain details:', {
-        type: typeof cleanupChain,
-        isPromise: cleanupChain instanceof Promise,
-        hasThenable: typeof cleanupChain?.then === 'function',
-        methods: Object.keys(cleanupChain),
-        deleteReturnType: typeof cleanupChain?.delete?.(),
-        notReturnType: typeof cleanupChain?.not?.(),
-        thenType: typeof cleanupChain?.then
-      });
-
-      await Promise.all([
-        Promise.resolve(cleanupChain)
-          .then((result) => {
-            console.log('Cleanup chain resolved with:', result);
-            console.log('Successfully cleaned USER_PROFILES');
-          })
-          .catch((err: any) => {
-            console.error('Error cleaning USER_PROFILES:', {
-              error: err,
-              stack: err.stack,
-              chainState: {
-                hasDelete: !!cleanupChain?.delete,
-                deleteReturnType: typeof cleanupChain?.delete?.(),
-                notReturnType: typeof cleanupChain?.not?.(),
-                thenType: typeof cleanupChain?.then
-              }
-            });
-          }),
-        // ... other table cleanups
-      ]);
+        .not('user_id', 'is', null); // Valid syntax, but needs proper typing
+  
+      if (error) {
+        console.error('Error cleaning USER_PROFILES:', error);
+        throw error;
+      }
+  
+      console.log('Successfully cleaned USER_PROFILES');
       console.log('All tables cleaned successfully');
     } catch (error) {
       console.error('Error during table cleanup:', {
@@ -77,7 +42,7 @@ export const databaseHelper = {
       });
       throw error;
     }
-
+  
     console.log('=== Database Cleanup Complete ===\n');
   },
 
@@ -132,22 +97,24 @@ export const databaseHelper = {
    */
   async createTestSubscription(userId: string, status: 'active' | 'inactive' = 'active') {
     this.verifyTestEnvironment();
-
+  
     const { data, error } = await testSupabase
       .from(TABLES.SUBSCRIPTIONS)
       .upsert({
         user_id: userId,
-        status,
+        status: status as Database["public"]["Enums"]["subscription_status_enum"], // Explicit type
         stripe_subscription_id: `test_sub_${Date.now()}`,
-        stripe_customer_id: `test_cus_${Date.now()}`,
-        plan_id: 'test_plan',
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        plan_type: 'monthly' as Database["public"]["Enums"]["plan_type_enum"], // Replace plan_id, use enum
+        start_date: new Date().toISOString(), // Required field
+        created_at: new Date().toISOString(), // Optional but good for tests
+        updated_at: new Date().toISOString(), // Optional but good for tests
+        end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Renamed from current_period_end
       }, {
         onConflict: 'user_id'
       })
       .select()
       .single();
-
+  
     if (error) throw error;
     return data;
   }

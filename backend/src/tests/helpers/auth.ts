@@ -24,14 +24,12 @@ export const authHelper = {
     first_name: 'Test',
     last_name: 'User'
   }) {
-    // Create user
-    const { authUser, profile } = await databaseHelper.createTestUser(userData);
-
-    // Get auth token
+    const { user, profile } = await databaseHelper.createTestUser(userData); // Fix: 'user', not 'authUser'
+  
     const token = await this.getTestUserToken(userData.email, userData.password);
-
+  
     return {
-      user: authUser.user,
+      user,  // Fix: 'user', not 'authUser.user'
       profile,
       token
     };
