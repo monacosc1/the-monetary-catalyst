@@ -15,12 +15,10 @@
   "include": [
     "src/**/*.ts",
     "src/express.d.ts",
-    "src/tests/**/*.ts"
+    "src/tests/**/*.ts" // Include all test files
   ],
   "exclude": [
     "node_modules",
-    "src/tests",
-    "**/*.test.ts",
-    "jest.setup.js"
+    "dist" // Remove "src/tests" and "**/*.test.ts" from exclude
   ]
 }
