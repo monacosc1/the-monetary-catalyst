@@ -1,31 +1,31 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
-import DotPattern from '@/components/DotPattern'
-import { supabase } from '@/utils/supabase'
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import DotPattern from '@/components/DotPattern';
+import { supabase } from '@/utils/supabase';
 
 export default function SuccessPage() {
-  const [message, setMessage] = useState('Processing your subscription...')
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
-  const searchParams = useSearchParams()
-  const router = useRouter()
+  const [message, setMessage] = useState('Processing your subscription...');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const verifySession = async () => {
+  const verifySession = useCallback(async () => {
     try {
-      setIsLoading(true)
-      setError(null)
-      const { data: { session } } = await supabase.auth.getSession()
+      setIsLoading(true);
+      setError(null);
+      const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        throw new Error('Authentication error. Please try logging in again.')
+        throw new Error('Authentication error. Please try logging in again.');
       }
 
-      const sessionId = searchParams.get('session_id')
+      const sessionId = searchParams.get('session_id');
       if (!sessionId) {
-        throw new Error('No session ID provided')
+        throw new Error('No session ID provided');
       }
 
       const timeoutPromise = new Promise((_, reject) => 
@@ -42,33 +42,33 @@ export default function SuccessPage() {
       );
 
       const response = (await Promise.race([verificationPromise, timeoutPromise])) as Response;
-      const data = await response.json()
+      const data = await response.json();
       
       if (data.success) {
-        setMessage('Thank you for your subscription! You now have access to all premium content.')
-        setTimeout(() => router.push('/'), 5000)
+        setMessage('Thank you for your subscription! You now have access to all premium content.');
+        setTimeout(() => router.push('/'), 5000);
       } else {
-        throw new Error('There was an issue verifying your subscription. Please retry.')
+        throw new Error('There was an issue verifying your subscription. Please retry.');
       }
     } catch (error) {
-      console.error('Error verifying session:', error)
+      console.error('Error verifying session:', error);
       if (retryCount < 3) {
-        setError('Verification failed. Click "Retry" to try again.')
+        setError('Verification failed. Click "Retry" to try again.');
       } else {
-        setError('Max retries reached. Please contact support at support@themonetarycatalyst.com')
+        setError('Max retries reached. Please contact support at support@themonetarycatalyst.com');
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  }, [retryCount, searchParams, router]);
 
   useEffect(() => {
     if (searchParams.get('session_id')) {
-      verifySession()
+      verifySession();
     } else {
-      router.push('/pricing')
+      router.push('/pricing');
     }
-  }, [searchParams, router])
+  }, [searchParams, router, verifySession]);
 
   return (
     <div className="bg-background-dark text-white min-h-screen py-12 relative">
@@ -105,5 +105,5 @@ export default function SuccessPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

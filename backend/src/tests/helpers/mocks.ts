@@ -46,7 +46,7 @@ export const mockHelper = {
     ...data
   }),
 
-  createMockResponse: (): MockResponse => {
+  createMockResponse(): MockResponse {
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
@@ -55,7 +55,9 @@ export const mockHelper = {
     return res as MockResponse;
   },
 
-  createMockNext: (): NextFunction => jest.fn(),
+  createMockNext(): NextFunction {
+    return jest.fn();
+  },
 
   stripe: {
     createCheckoutSession: {
@@ -254,6 +256,19 @@ export const mockSupabase = {
         return queryBuilder;
       }
     };
+  }),
+  rpc: jest.fn().mockImplementation((fnName: string, params: any) => {
+    console.log(`mockSupabase.rpc called for function: ${fnName} with params:`, params);
+    return {
+      mockSuccess: (data: any) => {
+        console.log('mockSuccess called for RPC:', fnName, 'with:', data);
+        return Promise.resolve({ data, error: null });
+      },
+      mockError: (message: string) => {
+        console.log('mockError called for RPC:', fnName, 'with:', message);
+        return Promise.resolve({ data: null, error: new Error(message) });
+      }
+    };
   })
 };
 
@@ -262,7 +277,8 @@ export const mockEmailService = {
   sendNewsletterWelcomeEmail: jest.fn().mockResolvedValue(true),
   sendNewsletterWelcomeBackEmail: jest.fn().mockResolvedValue(true),
   validateEmail: jest.fn().mockResolvedValue(true),
-  sendWelcomeEmail: jest.fn().mockResolvedValue(true)
+  sendWelcomeEmail: jest.fn().mockResolvedValue(true),
+  sendSubscriptionConfirmation: jest.fn().mockResolvedValue(true) // Added for paymentController
 };
 
 // Mock external modules
@@ -273,10 +289,12 @@ jest.mock('../../services/emailService', () => ({
 export const resetMocks = () => {
   console.log('resetMocks: Clearing all mocks...');
   const originalFrom = mockSupabase.from;
+  const originalRpc = mockSupabase.rpc;
 
   jest.clearAllMocks();
 
   mockSupabase.from = originalFrom;
+  mockSupabase.rpc = originalRpc;
 
   if (mockSupabase.auth.signInWithPassword) {
     mockSupabase.auth.signInWithPassword.mockReset();
