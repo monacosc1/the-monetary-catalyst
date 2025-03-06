@@ -1,8 +1,9 @@
+// src/controllers/paymentController.ts
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import supabase from '../config/supabase';
 import { emailService } from '../services/emailService';
-import { paymentService } from '../services/paymentService';
+import { PaymentService } from '../services/paymentService';
 import { TABLES } from '../config/tables';
 import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
@@ -59,7 +60,6 @@ interface Subscription {
   updated_at: string;
 }
 
-// Load p-retry dynamically once and reuse
 let pRetry: typeof import('p-retry')['default'] | undefined;
 async function loadPRetry() {
   if (!pRetry) {
@@ -178,181 +178,128 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
   }
 };
 
-
 export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
+  let asyncProcessing: Promise<void> | undefined;
   try {
     const sig = req.headers['stripe-signature'] as string;
-    let event;
-
-    console.log('Received webhook request');
-    console.log('Stripe signature:', sig);
+    console.log('Received webhook request', { signature: sig });
     
-    event = stripe.webhooks.constructEvent(
+    const event = stripe.webhooks.constructEvent(
       req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET as string
     );
-
+    
+    res.json({ received: true });
+    
     console.log('Webhook event type:', event.type);
     console.log('Webhook event data:', JSON.stringify(event.data.object, null, 2));
-
-    switch (event.type) {
-      case 'checkout.session.completed':
-        try {
-          const session = event.data.object as Stripe.Checkout.Session;
-          const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-          
-          const { data: subData, error: insertError } = await supabase
-            .from(TABLES.SUBSCRIPTIONS)
-            .insert({
-              user_id: session.client_reference_id,
-              stripe_subscription_id: session.subscription,
-              status: 'active',
-              plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
-              subscription_type: 'professional',
-              start_date: new Date(subscription.current_period_start * 1000).toISOString(),
-              end_date: new Date(subscription.current_period_end * 1000).toISOString(),
-              payment_status: 'active',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              last_payment_date: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error('Error inserting subscription:', insertError);
-            throw new Error('Failed to create subscription record');
-          }
-
-          const invoice = await stripe.invoices.retrieve(session.invoice as string);
-          console.log('Detailed payment data:', {
-            sessionPaymentIntent: session.payment_intent,
-            invoicePaymentIntent: invoice.payment_intent,
-            sessionId: session.id,
-            invoiceId: invoice.id,
-            sessionObject: {
-              payment_status: session.payment_status,
-              status: session.status,
-              mode: session.mode
-            }
-          });
-          
-          if (!session.client_reference_id) {
-            throw new Error('Missing client_reference_id in session');
-          }
-
-          const paymentIntentId = invoice.payment_intent as string;
-          if (!paymentIntentId) {
-            console.error('No payment intent found in invoice:', invoice.id);
-          }
-
-          await paymentService.createPaymentRecord({
-            userId: session.client_reference_id,
-            subscriptionId: subData.id,
-            invoice,
-            paymentIntent: paymentIntentId
-          });
-
-          console.log('Payment record created with payment intent:', paymentIntentId);
-          res.json({ received: true });
-
-          try {
-            const customer = await stripe.customers.retrieve(session.customer as string) as Stripe.Customer;
-            if (!isValidCustomer(customer)) {
-              console.error('Customer has been deleted');
-              return;
-            }
-
-            const firstName = customer.metadata?.first_name || 
-                             (customer.name ? customer.name.split(' ')[0] : null);
-
-            await emailService.sendSubscriptionConfirmation(
-              customer.email || '',
-              firstName,
-              subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
-              'professional'
-            );
-            console.log('Subscription confirmation email sent successfully');
-          } catch (emailError) {
-            console.error('Email error:', emailError);
-          }
-        } catch (error) {
-          console.error('Error processing checkout.session.completed:', error);
-          if (!res.headersSent) {
-            res.status(500).json({ error: 'Failed to process subscription' });
-          }
-        }
-        break;
-
-        case 'customer.subscription.deleted':
-          try {
-            const subscription = event.data.object as Stripe.Subscription;
-            console.log('Received subscription.deleted webhook:', {
-              subscriptionId: subscription.id,
-              customerId: subscription.customer,
-              endDate: new Date(subscription.current_period_end * 1000)
-            });
-            
-            const { error: updateError } = await supabase
-              .from(TABLES.SUBSCRIPTIONS)
-              .update({
-                status: 'expired',
-                payment_status: 'cancelled',
-                updated_at: new Date().toISOString(),
-                end_date: new Date(subscription.current_period_end * 1000).toISOString()
-              })
-              .eq('stripe_subscription_id', subscription.id);
-  
-            if (updateError) {
-              console.error('Error updating subscription status:', updateError);
-              throw new Error('Failed to update subscription status');
-            }
-  
-            console.log('Successfully marked subscription as expired:', subscription.id);
-            res.json({ received: true }); // Added
-          } catch (error) {
-            console.error('Error processing subscription.deleted webhook:', error);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to process subscription deletion' });
-            }
-          }
-          break;
-  
-        case 'invoice.payment_succeeded':
-          try {
+    
+    asyncProcessing = (async () => {
+      try {
+        switch (event.type) {
+          case 'checkout.session.completed':
+            await processCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+            break;
+          case 'customer.subscription.deleted':
+            await processSubscriptionDeleted(event.data.object as Stripe.Subscription);
+            break;
+          case 'invoice.payment_succeeded':
             await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
-            if (!res.headersSent) {
-              res.json({ received: true }); // Added
-            }
-          } catch (error) {
-            console.error('Error processing invoice.payment_succeeded:', error);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to process invoice payment' });
-            }
-          }
-          break;
-  
-        case 'invoice.payment_failed':
-          try {
+            break;
+          case 'invoice.payment_failed':
             await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
-            if (!res.headersSent) {
-              res.json({ received: true }); // Added
-            }
-          } catch (error) {
-            console.error('Error processing invoice.payment_failed:', error);
-            if (!res.headersSent) {
-              res.status(500).json({ error: 'Failed to process invoice payment failure' });
-            }
-          }
-          break;
+            break;
+          case 'setup_intent.succeeded':
+            await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent);
+            break;
+          default:
+            console.log('Unhandled event type:', event.type);
+        }
+      } catch (error) {
+        console.error(`Async processing error for ${event.type}:`, error);
+        throw error;
       }
-    } catch (err) {
-      if (!res.headersSent) {
-        res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      }
+    })();
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err);
+    res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+
+  (req as any).asyncProcessing = asyncProcessing;
+};
+
+async function processCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  try {
+    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+    const invoice = await stripe.invoices.retrieve(session.invoice as string);
+    
+    if (!session.client_reference_id) {
+      throw new Error('Missing client_reference_id in session');
     }
-  };
+    
+    // Use RPC for atomic transaction
+    const { data, error } = await supabase.rpc('create_subscription_and_payment', {
+      p_user_id: session.client_reference_id,
+      p_stripe_subscription_id: session.subscription as string,
+      p_plan_type: subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+      p_payment_intent: invoice.payment_intent as string,
+      p_amount: invoice.amount_paid / 100, // Pass dynamic amount
+    });
+    
+    if (error || !data) {
+      throw new Error('Failed to create subscription and payment via RPC: ' + (error?.message || 'Unknown error'));
+    }
+    
+    const subscriptionId = data.subscription_id; // Assumes RPC returns this
+    
+    console.log('Payment record created with payment intent:', invoice.payment_intent);
+    
+    const customer = await stripe.customers.retrieve(session.customer as string) as Stripe.Customer;
+    if (!isValidCustomer(customer)) {
+      console.error('Customer has been deleted');
+      return;
+    }
+    
+    const firstName = customer.metadata?.first_name || (customer.name ? customer.name.split(' ')[0] : null);
+    await emailService.sendSubscriptionConfirmation(
+      customer.email || '',
+      firstName,
+      subscription.items.data[0].price.recurring?.interval === 'month' ? 'monthly' : 'yearly',
+      'professional'
+    );
+    console.log('Subscription confirmation email sent successfully');
+  } catch (error) {
+    console.error('Error processing checkout.session.completed:', error);
+    throw error;
+  }
+}
+
+async function processSubscriptionDeleted(subscription: Stripe.Subscription) {
+  try {
+    console.log('Received subscription.deleted webhook:', {
+      subscriptionId: subscription.id,
+      customerId: subscription.customer,
+      endDate: new Date(subscription.current_period_end * 1000)
+    });
+    
+    const { error } = await supabase
+      .from(TABLES.SUBSCRIPTIONS)
+      .update({
+        status: 'expired',
+        payment_status: 'cancelled',
+        updated_at: new Date().toISOString(),
+        end_date: new Date(subscription.current_period_end * 1000).toISOString()
+      })
+      .eq('stripe_subscription_id', subscription.id);
+    
+    if (error) throw new Error('Failed to update subscription status: ' + error.message);
+    console.log('Successfully marked subscription as expired:', subscription.id);
+  } catch (error) {
+    console.error('Error processing subscription.deleted:', error);
+    throw error;
+  }
+}
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return;
@@ -377,12 +324,13 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
-    await paymentService.createPaymentRecord({
+    await PaymentService.createPaymentRecord(
       userId,
-      subscriptionId: supabaseSubscription.id,
-      invoice,
-      paymentIntent: invoice.payment_intent as string
-    });
+      supabaseSubscription.id,
+      invoice.id,
+      invoice.payment_intent as string,
+      invoice.amount_paid / 100 // Pass dynamic amount
+    );
 
     await withRetry(async () => {
       const result = await supabase
@@ -459,6 +407,7 @@ async function handleSetupIntentSucceeded(setupIntent: Stripe.SetupIntent) {
     });
   } catch (error) {
     console.error('Error handling setup intent succeeded:', error);
+    throw error;
   }
 }
 

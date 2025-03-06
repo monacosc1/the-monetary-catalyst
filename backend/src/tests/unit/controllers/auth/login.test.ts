@@ -5,18 +5,52 @@ import { userFixtures } from '../../../fixtures/users';
 import { TABLES } from '../../../../config/tables';
 
 describe('Auth Controller - Login', () => {
+  // Capture original implementation at the top of the file
+  const originalFromImpl = mockSupabase.from.getMockImplementation() ?? ((table: string) => {
+    throw new Error(`Unexpected table access during tests: ${table}`);
+  });
+
   beforeEach(async () => {
     console.log('=== Test Setup Starting ===');
-    await databaseHelper.cleanTables();
-    resetMocks();
     
-    // Add debug logging for mock state after reset
+    // Reset mocks and restore original implementation
+    resetMocks();
+    mockSupabase.from.mockImplementation(originalFromImpl);
+    
+    // Log query builder state for debugging
+    const qb = mockSupabase.from(TABLES.USER_PROFILES);
+    console.log('Query builder before cleanup:', {
+      isQueryBuilderDefined: !!qb,
+      hasDelete: !!qb?.delete,
+      hasNot: !!qb?.not,
+      methods: qb ? Object.keys(qb) : 'undefined'
+    });
+
+    await databaseHelper.cleanTables();
+    resetMocks(); // Keep this for clearing test-specific mocks
+    
     console.log('Mock state after reset:', {
       hasSignInMock: !!mockSupabase.auth.signInWithPassword.mock,
       mockCalls: mockSupabase.auth.signInWithPassword.mock?.calls?.length
     });
     
     console.log('=== Test Setup Complete ===');
+  });
+
+  afterEach(() => {
+    console.log('=== Test Cleanup Starting ===');
+    
+    // Restore original implementation
+    mockSupabase.from.mockReset();
+    mockSupabase.from.mockImplementation(originalFromImpl);
+    
+    console.log('Query builder after cleanup:', {
+      isQueryBuilderDefined: !!mockSupabase.from(TABLES.USER_PROFILES),
+      hasDelete: !!mockSupabase.from(TABLES.USER_PROFILES)?.delete,
+      hasNot: !!mockSupabase.from(TABLES.USER_PROFILES)?.not
+    });
+    
+    console.log('=== Test Cleanup Complete ===');
   });
 
   it('should successfully login user', async () => {
@@ -46,6 +80,27 @@ describe('Auth Controller - Login', () => {
       error: null
     });
 
+    // Mock successful profile fetch
+    mockSupabase.from.mockImplementation((table: string) => {
+      console.log(`Test 1: mockSupabase.from called with table: ${table}`);
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            user_id: TEST_USER_ID,
+            email: testUser.email,
+            first_name: testUser.first_name,
+            last_name: testUser.last_name
+          },
+          error: null,
+          count: null,
+          status: 200,
+          statusText: 'OK'
+        })
+      };
+    });
+
     const mockReq = mockHelper.createMockRequest({
       body: {
         email: testUser.email,
@@ -55,7 +110,6 @@ describe('Auth Controller - Login', () => {
     const mockRes = mockHelper.createMockResponse();
     const mockNext = mockHelper.createMockNext();
 
-    // Add debug logging right before the login call
     console.log('About to call loginUser...');
     await loginUser(mockReq as any, mockRes as any, mockNext);
     console.log('loginUser completed');
@@ -159,4 +213,4 @@ describe('Auth Controller - Login', () => {
       message: 'Error fetching user profile'
     });
   });
-}); 
+});

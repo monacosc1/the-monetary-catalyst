@@ -317,3 +317,84 @@ describe('cancelSubscription', () => {
 });
 
 Expected Outcomes: Ensures subscription cancellation works and handles errors.
+
+### 6. createSetupIntent (in paymentController.ts)
+
+Purpose: Test the creation of a Stripe SetupIntent for authenticated users, handling customer verification, and error cases.
+Implementation:
+
+describe('createSetupIntent', () => {
+  it('successfully creates a SetupIntent for an authenticated user', async () => {
+    (stripe.setupIntents.create as jest.Mock).mockResolvedValue({
+      id: 'seti_123',
+      client_secret: 'seti_123_secret_xyz'
+    } as Stripe.Response<Stripe.SetupIntent>);
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { stripe_customer_id: 'cus_123' },
+        error: null
+      })
+    });
+
+    const req = { user: { id: 'user_123' }} as Request;
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    await createSetupIntent(req, res);
+    expect(supabase.from).toHaveBeenCalledWith('user_profiles');
+    expect(stripe.setupIntents.create).toHaveBeenCalledWith({
+      customer: 'cus_123',
+      payment_method_types: ['card'],
+      metadata: { userId: 'user_123' }
+    });
+    expect(res.json).toHaveBeenCalledWith({ clientSecret: 'seti_123_secret_xyz' });
+  });
+
+  it('handles user not found when stripe_customer_id is missing', async () => {
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'No profile found' }
+      })
+    });
+
+    const req = { user: { id: 'user_123' }} as Request;
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    await createSetupIntent(req, res);
+    expect(supabase.from).toHaveBeenCalledWith('user_profiles');
+    expect(stripe.setupIntents.create).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'User not found' });
+  });
+
+  it('handles Stripe error during SetupIntent creation', async () => {
+    (stripe.setupIntents.create as jest.Mock).mockRejectedValue(new Error('Stripe API failure'));
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { stripe_customer_id: 'cus_123' },
+        error: null
+      })
+    });
+
+    const req = { user: { id: 'user_123' }} as Request;
+    const res = { json: jest.fn(), status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    await createSetupIntent(req, res);
+    expect(supabase.from).toHaveBeenCalledWith('user_profiles');
+    expect(stripe.setupIntents.create).toHaveBeenCalledWith({
+      customer: 'cus_123',
+      payment_method_types: ['card'],
+      metadata: { userId: 'user_123' }
+    });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to create setup intent' });
+  });
+});
+
+Expected Outcomes: Ensures proper SetupIntent creation, user verification, and error handling for payment method setup.
