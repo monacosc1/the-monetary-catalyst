@@ -77,6 +77,7 @@ monetary-catalyst/
 │   │   │   └── userModel.ts
 │   │   ├── routes/        # API routes
 │   │   │   ├── authRoutes.ts
+|   |   |   |── contentRoutes.ts
 │   │   │   ├── contactRoutes.ts
 │   │   │   ├── contentRoutes.ts
 │   │   │   ├── emailWebhookRoutes.ts

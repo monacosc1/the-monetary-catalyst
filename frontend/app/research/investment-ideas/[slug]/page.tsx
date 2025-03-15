@@ -1,3 +1,4 @@
+// /frontend/app/research/investment-ideas/[slug]/page.tsx
 'use client'
 
 import React, { useEffect, useState } from 'react';
@@ -6,41 +7,11 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 import DotPattern from '@/components/DotPattern';
 import ArticleGate from '@/components/ArticleGate';
-import articleService from '@/services/articleService';
+import articleService, { ArticlePreview, StrapiImage } from '@/services/articleService';
 import { formatPublishDate } from '@/utils/dateFormatters';
 
-interface ArticleData {
-  id: number;
-  title: string;
-  content: Array<{
-    type: string;
-    children: Array<{
-      type: string;
-      text?: string;
-      url?: string;
-      children?: Array<{ text: string }>;
-    }>;
-    image?: {
-      url: string;
-      caption?: string;
-      alternativeText?: string;
-    };
-    level?: number;
-  }>;
-  feature_image_url?: {
-    data?: {
-      attributes?: {
-        url: string;
-      };
-    };
-    url?: string;
-  };
-  author: string;
-  publish_date: string;
-}
-
 export default function InvestmentIdeaPage({ params }: { params: { slug: string } }) {
-  const [article, setArticle] = useState<ArticleData | null>(null);
+  const [article, setArticle] = useState<ArticlePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { user } = useAuth();
@@ -48,17 +19,24 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
   useEffect(() => {
     const fetchArticleAndSubscription = async () => {
       try {
-        // Fetch article data
+        console.log('Fetching article with slug:', params.slug);
+        
+        // Fetch article data from backend via articleService
         const articleData = await articleService.getArticleBySlug(params.slug);
+        console.log('Article data received:', articleData ? 'Found' : 'Not found');
+        
         setArticle(articleData);
 
         // Check subscription status if user is logged in
         if (user) {
+          console.log('Checking subscription for user:', user.id);
           const { data: subscription, error } = await supabase
             .from('subscriptions')
             .select('status')
             .eq('user_id', user.id)
             .single();
+
+          console.log('Subscription data:', subscription, error);
 
           if (!error && subscription) {
             setHasActiveSubscription(subscription.status === 'active');
@@ -83,26 +61,35 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
       <div className="text-center py-20">
         <h2 className="text-2xl">Article not found</h2>
         <p>The article you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+        <p className="text-sm text-gray-500 mt-2">Debug info: Slug: {params.slug}</p>
       </div>
     );
   }
 
-  // Helper function to clean image URLs
-  const getCleanImageUrl = (imageData: ArticleData['feature_image_url']) => {
-    if (!imageData) return null;
+  // Helper function to clean image URLs with proper typing
+  const getCleanImageUrl = (
+    imageData: string | { data?: { attributes: StrapiImage['attributes'] } } | StrapiImage['attributes'] | { url: string; caption?: string; alternativeText?: string } | null | undefined
+  ): string | undefined => {
+    if (!imageData) return undefined;
     
-    const rawUrl = imageData.data?.attributes?.url || imageData.url;
-    if (!rawUrl) return null;
+    // Handle string (direct URL)
+    if (typeof imageData === 'string') return imageData;
+    
+    // Handle nested structure from feature_image_url or section.image
+    const rawUrl = 'data' in imageData && imageData.data?.attributes?.url || 'url' in imageData && imageData.url;
+    if (!rawUrl) return undefined;
 
-    const cleanUrl = rawUrl.replace(/^http:\/\/localhost:1337/, '');
-    return `${process.env.NEXT_PUBLIC_STRAPI_URL}${cleanUrl}`;
+    // Since we're now fetching through the backend, the URL should already be correct
+    return rawUrl;
   };
 
   // Get feature image URL
   const featureImageUrl = getCleanImageUrl(article.feature_image_url);
 
-  // If user is not logged in or doesn't have an active subscription, show gated content
-  if (!hasActiveSubscription) {
+  // If article is not a sample and user doesn't have an active subscription, show gated content
+  const isSample = article.isSample === true;
+  
+  if (!isSample && !hasActiveSubscription) {
     return (
       <div className="bg-background-dark text-white min-h-screen py-12 relative">
         <DotPattern />
@@ -112,7 +99,7 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
               title={article.title}
               publishDate={formatPublishDate(article.publish_date)}
               author={article.author}
-              featureImageUrl={article.feature_image_url?.data?.attributes?.url}
+              featureImageUrl={featureImageUrl}
               isLoggedIn={!!user}
             />
           </div>
@@ -121,7 +108,7 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
     );
   }
 
-  // Full article content for subscribed users
+  // Full article content for sample articles or subscribed users
   return (
     <div className="bg-background-dark text-white min-h-screen py-12 relative">
       <DotPattern />
@@ -146,7 +133,7 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
           )}
 
           {/* Article Content */}
-          {article.content.map((section, index) => {
+          {Array.isArray(article.content) && article.content.map((section, index) => {
             if (section.type === 'paragraph') {
               return (
                 <p key={index} className="mb-4">
