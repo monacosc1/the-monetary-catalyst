@@ -19,14 +19,36 @@ export default function InvestmentIdeasPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Fetching investment ideas articles...');
         const [articlesResponse, popularArticlesData] = await Promise.all([
           articleService.getInvestmentIdeasPreviews(1, 10),
           articleService.getPopularInvestmentIdeas(3)
         ]);
         
-        setArticles(articlesResponse.data);
-        setFilteredArticles(articlesResponse.data);
-        setPopularArticles(popularArticlesData);
+        console.log('Investment articles from API:', articlesResponse.data);
+        if (articlesResponse.data.length > 0) {
+          console.log('First investment article:', {
+            title: articlesResponse.data[0].title,
+            type: articlesResponse.data[0].article_type,
+            isSample: articlesResponse.data[0].isSample
+          });
+        }
+        
+        // Double-check that we only have investment-idea articles
+        const investmentArticles = articlesResponse.data.filter(
+          article => article.article_type === 'investment-idea'
+        );
+        
+        if (investmentArticles.length !== articlesResponse.data.length) {
+          console.warn('Filtered out non-investment-idea articles:', 
+            articlesResponse.data.length - investmentArticles.length);
+        }
+        
+        setArticles(investmentArticles);
+        setFilteredArticles(investmentArticles);
+        setPopularArticles(popularArticlesData.filter(
+          article => article.article_type === 'investment-idea'
+        ));
       } catch (error) {
         console.error('Error fetching articles:', error);
       } finally {
@@ -76,7 +98,6 @@ export default function InvestmentIdeasPage() {
                           <ArticleImage
                             imageUrl={article.feature_image_url}
                             title={article.title}
-                            strapiUrl={process.env.NEXT_PUBLIC_STRAPI_URL || ''}
                             className="cursor-pointer transition-opacity hover:opacity-80"
                           />
                         </Link>
