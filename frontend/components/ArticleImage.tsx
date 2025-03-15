@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useState } from 'react';
 
 interface StrapiImage {
   data?: {
@@ -10,42 +11,98 @@ interface StrapiImage {
         small?: {
           url?: string;
         };
+        medium?: {
+          url?: string;
+        };
+        thumbnail?: {
+          url?: string;
+        };
       };
     };
   };
   url?: string;
+  // Add these for direct access after backend transformation
+  id?: number;
+  formats?: {
+    small?: {
+      url?: string;
+    };
+    medium?: {
+      url?: string;
+    };
+    thumbnail?: {
+      url?: string;
+    };
+  };
 }
 
 interface ArticleImageProps {
-  imageUrl: StrapiImage;
+  imageUrl: StrapiImage | string;
   title: string;
-  strapiUrl: string;
   className?: string;
 }
 
-export default function ArticleImage({ imageUrl, title, strapiUrl, className }: ArticleImageProps) {
-  console.log('ArticleImage debug:', {
-    original: imageUrl?.data?.attributes?.url,
-    cleaned: (imageUrl?.data?.attributes?.url || '').replace(strapiUrl, ''),
-    final: `${strapiUrl}${(imageUrl?.data?.attributes?.url || '').replace(strapiUrl, '')}`
-  });
+export default function ArticleImage({ imageUrl, title, className }: ArticleImageProps) {
+  const [imageError, setImageError] = useState(false);
   
-  const imageSource = (imageUrl?.data?.attributes?.formats?.small?.url || 
-                      imageUrl?.data?.attributes?.url ||
-                      imageUrl?.url || '')
-                      .replace(strapiUrl, '');
+  // Debug the incoming data structure
+  console.log('ArticleImage received:', JSON.stringify(imageUrl, null, 2));
   
-  console.log('Resolved imageSource:', imageSource);
+  let imageSource = '';
   
-  const fullImageUrl = imageSource.startsWith('http') 
-    ? imageSource 
-    : `${strapiUrl}${imageSource.startsWith('/') ? '' : '/'}${imageSource}`;
-
-  console.log('Full image URL:', fullImageUrl);
+  // Handle string (direct URL from backend)
+  if (typeof imageUrl === 'string') {
+    imageSource = imageUrl;
+  } 
+  // Handle object (either original Strapi structure or transformed backend structure)
+  else if (imageUrl) {
+    // Try nested Strapi structure first
+    if (imageUrl.data?.attributes?.formats?.small?.url) {
+      imageSource = imageUrl.data.attributes.formats.small.url;
+    } else if (imageUrl.data?.attributes?.formats?.medium?.url) {
+      imageSource = imageUrl.data.attributes.formats.medium.url;
+    } else if (imageUrl.data?.attributes?.formats?.thumbnail?.url) {
+      imageSource = imageUrl.data.attributes.formats.thumbnail.url;
+    } else if (imageUrl.data?.attributes?.url) {
+      imageSource = imageUrl.data.attributes.url;
+    } 
+    // Try backend transformed structure
+    else if (imageUrl.formats?.small?.url) {
+      imageSource = imageUrl.formats.small.url;
+    } else if (imageUrl.formats?.medium?.url) {
+      imageSource = imageUrl.formats.medium.url;
+    } else if (imageUrl.formats?.thumbnail?.url) {
+      imageSource = imageUrl.formats.thumbnail.url;
+    } else if (imageUrl.url) {
+      imageSource = imageUrl.url;
+    }
+  }
+  
+  console.log('Resolved image source:', imageSource);
+  
+  // If we don't have a valid image source, show a placeholder
+  if (!imageSource || imageError) {
+    return (
+      <div 
+        className={`h-48 w-full bg-gray-200 flex items-center justify-center md:w-48 ${className || ''}`}
+      >
+        <span className="text-gray-400">No Image</span>
+      </div>
+    );
+  }
+  
+  // If the URL isn't absolute, it's a problem since it needs to be
+  if (!imageSource.startsWith('http')) {
+    console.error('Invalid image URL (not absolute):', imageSource);
+    // Try to create a complete URL if possible
+    const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+    imageSource = `${strapiUrl}${imageSource.startsWith('/') ? '' : '/'}${imageSource}`;
+    console.log('Attempted to fix URL:', imageSource);
+  }
   
   return (
     <Image
-      src={fullImageUrl}
+      src={imageSource}
       alt={title || 'Article image'}
       width={300}
       height={200}
@@ -55,8 +112,8 @@ export default function ArticleImage({ imageUrl, title, strapiUrl, className }: 
         console.error('Image load error:', e);
         const img = e.target as HTMLImageElement;
         console.log('Failed URL:', img.src);
-        img.src = "https://via.placeholder.com/300x200";
+        setImageError(true);
       }}
     />
   );
-} 
+}

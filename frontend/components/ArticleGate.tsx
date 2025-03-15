@@ -1,3 +1,4 @@
+// /frontend/components/ArticleGate.tsx
 'use client'
 
 import Link from 'next/link';
@@ -8,7 +9,6 @@ interface ArticleGateProps {
   publishDate: string;
   author: string;
   featureImageUrl?: string;
-  strapiUrl?: string;
   isLoggedIn?: boolean;
 }
 
@@ -17,7 +17,6 @@ export default function ArticleGate({
   publishDate, 
   author,
   featureImageUrl,
-  strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || '',
   isLoggedIn = false
 }: ArticleGateProps) {
   return (
@@ -33,7 +32,7 @@ export default function ArticleGate({
         {featureImageUrl && (
           <div className="relative">
             <Image 
-              src={`${strapiUrl}${featureImageUrl}`}
+              src={featureImageUrl}
               alt={title}
               width={800}
               height={400}
@@ -75,4 +74,4 @@ export default function ArticleGate({
       </div>
     </div>
   );
-} 
+}

@@ -1,3 +1,4 @@
+// /backend/src/app.ts
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -6,17 +7,14 @@ import paymentRoutes from './routes/paymentRoutes';
 import contactRoutes from './routes/contactRoutes';
 import newsletterRoutes from './routes/newsletterRoutes';
 import webhookRoutes from './routes/webhookRoutes';
+import contentRoutes from './routes/contentRoutes';
 
 const app: Application = express();
 
 // Basic middleware
 app.use(cors({
-  origin: [
-    'https://www.themonetarycatalyst.com',
-    'https://themonetarycatalyst.com',
-    'http://localhost:3000'
-  ],
-  credentials: true
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  credentials: true,
 }));
 
 // Configure webhook rate limiter
@@ -44,6 +42,7 @@ app.use('/api', apiLimiter, express.json());
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`);
+  console.log('Request origin:', req.headers.origin || req.headers.referer || 'Unknown');
   next();
 });
 
@@ -58,6 +57,7 @@ app.use('/api', paymentRoutes);
 app.use('/api', contactRoutes);
 app.use('/api', newsletterRoutes);
 app.use('/api', webhookRoutes);
+app.use('/api/content', contentRoutes);
 
 // Default error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -65,4 +65,4 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-export default app; 
+export default app;
