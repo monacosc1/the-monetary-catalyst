@@ -1,17 +1,38 @@
+// /frontend/config/sampleArticles.ts
 export const SAMPLE_ARTICLES = {
   marketAnalysis: {
-    id: 11,
-    title: "Monetary Policy Strikes Again",
-    slug: "monetary-policy-strikes-again"
+    development: {
+      slug: 'central-bank-failure',
+      title: 'Test3: Monetary Policy Strikes Again',
+      articleType: 'market-analysis',
+    },
+    production: {
+      slug: 'are-financial-conditions-actually-tight',
+      title: 'Are Financial Conditions Actually Tight?',
+      articleType: 'market-analysis',
+    },
   },
   investmentIdeas: {
-    id: 13,
-    title: "Investment Pick for November 2024",
-    slug: "investment-pick-for-november-2024"
-  }
+    development: {
+      slug: 'investment-pick-2024',
+      title: 'Test4: Investment Pick for November 2024',
+      articleType: 'investment-ideas',
+    },
+    production: {
+      slug: 'investment-pick-for-november-2024', // Update with a new production slug later
+      title: 'Investment Pick for November 2024', // Update with a new title later
+      articleType: 'investment-ideas',
+    },
+  },
 } as const;
 
-console.log('Sample article IDs:', {
-  marketAnalysis: SAMPLE_ARTICLES.marketAnalysis.id,
-  investmentIdeas: SAMPLE_ARTICLES.investmentIdeas.id
-}); 
+export function getSampleArticleConfig(type: 'marketAnalysis' | 'investmentIdeas') {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const env = isDevelopment ? 'development' : 'production';
+  return SAMPLE_ARTICLES[type][env];
+}
+
+console.log('Sample article configs:', {
+  marketAnalysis: getSampleArticleConfig('marketAnalysis'),
+  investmentIdeas: getSampleArticleConfig('investmentIdeas'),
+});

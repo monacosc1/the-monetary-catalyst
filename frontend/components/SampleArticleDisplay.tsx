@@ -1,92 +1,51 @@
-'use client'
+// /frontend/components/SampleArticleDisplay.tsx
+'use client';
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
-import { formatPublishDate } from '@/utils/dateFormatters';
-import articleService from '@/services/articleService';
 import Link from 'next/link';
+import { formatPublishDate } from '@/utils/dateFormatters';
+import { ArticlePreview, ContentBlock, ContentChild, StrapiImage } from '@/services/articleService';
 
 interface SampleArticleDisplayProps {
-  articleId: number;
+  article: ArticlePreview | null;
   articleType: 'market-analysis' | 'investment-ideas';
 }
 
-interface ArticleData {
-  id: number;
-  title: string;
-  content: Array<{
-    type: string;
-    children: Array<{
-      type: string;
-      text?: string;
-      url?: string;
-      children?: Array<{ text: string }>;
-    }>;
-    image?: {
-      url: string;
-      caption?: string;
-      alternativeText?: string;
-    };
-    level?: number;
-  }>;
-  feature_image_url?: {
-    data?: {
-      attributes?: {
-        url: string;
-      };
-    };
-    url?: string;
+export default function SampleArticleDisplay({ article, articleType }: SampleArticleDisplayProps) {
+  // Helper function to clean image URLs with proper typing
+  const getCleanImageUrl = (imageData: string | { data?: { attributes: StrapiImage['attributes'] } } | StrapiImage['attributes'] | null): string | null => {
+    if (!imageData) return null;
+    if (typeof imageData === 'string') return imageData; // Use the URL directly if it's a string
+    const rawUrl = 'data' in imageData && imageData.data?.attributes?.url || 'url' in imageData && imageData.url;
+    return rawUrl || null;
   };
-  author: string;
-  publish_date: string;
-}
 
-export default function SampleArticleDisplay({ articleId, articleType }: SampleArticleDisplayProps) {
-  const [article, setArticle] = useState<ArticleData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchArticle = async () => {
-      try {
-        const response = await articleService.getSampleArticleById(articleId);
-        console.log('Sample article response in component:', response);
-        setArticle(response);
-      } catch (err) {
-        setError('Failed to load sample article');
-        console.error('Error fetching sample article:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchArticle();
-  }, [articleId]);
-
-  const renderContent = (section: ArticleData['content'][0]) => {
+  const renderContent = (section: ContentBlock) => {
     console.log('Rendering section details:', {
       sectionType: section.type,
       sectionChildren: section.children,
-      fullSection: section
+      fullSection: section,
     });
 
     if (section.type === 'heading') {
+      const HeadingTag = `h${section.level || 3}` as keyof JSX.IntrinsicElements;
       return (
-        <h3 className="text-2xl font-bold mt-6 mb-4">
+        <HeadingTag key={section.id || section.type} className="text-2xl font-bold mt-6 mb-4">
           {section.children[0].text}
-        </h3>
+        </HeadingTag>
       );
     }
 
     if (section.type === 'paragraph') {
       return (
-        <p className="mb-4 text-gray-800">
-          {section.children.map((child, index) => {
+        <p key={section.id || section.type} className="mb-4 text-gray-800">
+          {section.children.map((child: ContentChild, index: number) => {
             console.log('Processing child in paragraph:', {
               childType: child.type,
               childUrl: child.url,
               childText: child.text,
-              fullChild: child
+              fullChild: child,
             });
 
             if (child.type === 'text') {
@@ -94,9 +53,9 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
             }
             if (child.type === 'link') {
               return (
-                <a 
+                <a
                   key={index}
-                  href={child.url}
+                  href={child.url || '#'}
                   className="text-blue-600 hover:underline"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -113,38 +72,21 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
 
     if (section.type === 'image') {
       if (!section.image) return null;
-      
-      const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
-      if (!strapiUrl) {
-        console.error('NEXT_PUBLIC_STRAPI_URL is not defined');
-        return null;
-      }
-      
-      console.log('Image section data:', {
-        fullSection: section,
-        imageData: section.image,
-        strapiUrl,
-        imageUrl: section.image.url,
-        hasStrapi: section.image.url.includes(strapiUrl)
-      });
-      
-      const imageUrl = section.image.url.startsWith('http') 
-        ? section.image.url 
-        : `${strapiUrl}${section.image.url}`;
-      
+
+      const imageUrl = getCleanImageUrl(section.image);
+      if (!imageUrl) return null;
+
       return (
-        <div className="my-8">
+        <div key={section.id || section.type} className="my-8">
           <Image
             src={imageUrl}
-            alt={section.image.caption || 'Article image'}
+            alt={section.image?.alternativeText || section.image?.caption || 'Article image'}
             width={800}
             height={400}
             className="rounded-lg mx-auto"
           />
-          {section.image.caption && (
-            <p className="text-sm text-gray-600 text-center mt-2">
-              {section.image.caption}
-            </p>
+          {section.image?.caption && (
+            <p className="text-sm text-gray-600 text-center mt-2">{section.image.caption}</p>
           )}
         </div>
       );
@@ -153,9 +95,11 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
     return null;
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!article) return <div>Article not found</div>;
+  if (!article) {
+    return <div>Article not found</div>;
+  }
+
+  const featureImageUrl = getCleanImageUrl(article.feature_image_url);
 
   return (
     <div className="bg-white text-black p-8 rounded-lg shadow-xl">
@@ -165,50 +109,38 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
         <p>This is an example of our premium {articleType.replace('-', ' ')} content.</p>
       </div>
 
-      <h1 className="text-4xl font-bold mb-4">
-        {article.title}
-      </h1>
-      
+      <h1 className="text-4xl font-bold mb-4">{article.title}</h1>
+
       <p className="text-gray-600 mb-4">
         By {article.author} | Published on {formatPublishDate(article.publish_date)}
       </p>
-      
+
       {/* Feature Image */}
-      {article.feature_image_url && (
-        (() => {
-          const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
-          if (!strapiUrl) {
-            console.error('NEXT_PUBLIC_STRAPI_URL is not defined');
-            return null;
-          }
-          return (
-            <div className="mb-8 flex justify-center">
-              <div className="w-full max-w-4xl">
-                <Image 
-                  src={`${strapiUrl}${article.feature_image_url.url}`}
-                  alt={article.title}
-                  width={1200}
-                  height={600}
-                  className="w-full h-auto object-contain rounded-lg"
-                />
-              </div>
-            </div>
-          );
-        })()
+      {featureImageUrl && (
+        <div className="mb-8 flex justify-center">
+          <div className="w-full max-w-4xl">
+            <Image
+              src={featureImageUrl}
+              alt={article.title}
+              width={1200}
+              height={600}
+              className="w-full h-auto object-contain rounded-lg"
+            />
+          </div>
+        </div>
       )}
 
       {/* Article Content */}
       <div className="prose max-w-none">
-        {Array.isArray(article.content) && article.content.map((section, index) => (
-          <div key={index}>
-            {renderContent(section)}
-          </div>
-        ))}
+        {Array.isArray(article.content) &&
+          article.content.map((section, index) => (
+            <div key={index}>{renderContent(section)}</div>
+          ))}
       </div>
 
       {/* Back Button */}
       <div className="mt-8">
-        <Link 
+        <Link
           href="/samples"
           className="inline-block bg-primary text-white px-4 py-2 rounded hover:bg-accent1 transition-colors"
         >
@@ -217,4 +149,4 @@ export default function SampleArticleDisplay({ articleId, articleType }: SampleA
       </div>
     </div>
   );
-} 
+}

@@ -372,6 +372,7 @@ export interface AdminUser extends Struct.CollectionTypeSchema {
 export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
   collectionName: 'articles';
   info: {
+    description: '';
     displayName: 'Article';
     pluralName: 'articles';
     singularName: 'article';
@@ -401,15 +402,14 @@ export interface ApiArticleArticle extends Struct.CollectionTypeSchema {
     feature_image_url: Schema.Attribute.Media<
       'images' | 'files' | 'videos' | 'audios'
     >;
+    isSample: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'api::article.article'
     > &
       Schema.Attribute.Private;
-    publish_date: Schema.Attribute.Date &
-      Schema.Attribute.Required &
-      Schema.Attribute.Configurable;
+    publish_date: Schema.Attribute.Date & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.String &
       Schema.Attribute.Required &
