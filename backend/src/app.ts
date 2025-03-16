@@ -11,6 +11,9 @@ import contentRoutes from './routes/contentRoutes';
 
 const app: Application = express();
 
+// Trust proxy for Vercel (fixes express-rate-limit warning)
+app.set('trust proxy', true);
+
 // Basic middleware
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],

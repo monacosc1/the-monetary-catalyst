@@ -88,18 +88,24 @@ const getArticleHandler: RequestHandler = async (req: Request, res: Response, ne
       return;
     }
 
-    // Process feature_image_url 
+    // Process feature_image_url
     if (article.feature_image_url) {
       const strapiBaseUrl = process.env.STRAPI_URL || 'http://localhost:1337';
       if (typeof article.feature_image_url === 'object' && article.feature_image_url.url) {
         if (!article.feature_image_url.url.startsWith('http')) {
           article.feature_image_url.url = `${strapiBaseUrl}${article.feature_image_url.url}`;
+          console.log('Transformed feature_image_url (direct):', article.feature_image_url.url);
+        } else {
+          console.log('Feature_image_url already absolute (direct):', article.feature_image_url.url);
         }
         if (article.feature_image_url.formats) {
           Object.keys(article.feature_image_url.formats).forEach(format => {
             const formatUrl = article.feature_image_url.formats[format]?.url;
             if (formatUrl && !formatUrl.startsWith('http')) {
               article.feature_image_url.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+              console.log(`Transformed feature_image_url format (${format}):`, article.feature_image_url.formats[format].url);
+            } else {
+              console.log(`Feature_image_url format (${format}) already absolute:`, formatUrl);
             }
           });
         }
@@ -107,12 +113,18 @@ const getArticleHandler: RequestHandler = async (req: Request, res: Response, ne
         const attributes = article.feature_image_url.data.attributes;
         if (attributes.url && !attributes.url.startsWith('http')) {
           attributes.url = `${strapiBaseUrl}${attributes.url}`;
+          console.log('Transformed feature_image_url (attributes):', attributes.url);
+        } else {
+          console.log('Feature_image_url already absolute (attributes):', attributes.url);
         }
         if (attributes.formats) {
           Object.keys(attributes.formats).forEach(format => {
             const formatUrl = attributes.formats[format]?.url;
             if (formatUrl && !formatUrl.startsWith('http')) {
               attributes.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+              console.log(`Transformed feature_image_url format (${format}):`, attributes.formats[format].url);
+            } else {
+              console.log(`Feature_image_url format (${format}) already absolute:`, formatUrl);
             }
           });
         }
@@ -125,12 +137,18 @@ const getArticleHandler: RequestHandler = async (req: Request, res: Response, ne
         const strapiBaseUrl = process.env.STRAPI_URL || 'http://localhost:1337';
         if (image.attributes && image.attributes.url && !image.attributes.url.startsWith('http')) {
           image.attributes.url = `${strapiBaseUrl}${image.attributes.url}`;
+          console.log('Transformed article_image:', image.attributes.url);
+        } else {
+          console.log('Article_image already absolute:', image.attributes?.url);
         }
         if (image.attributes && image.attributes.formats) {
           Object.keys(image.attributes.formats).forEach(format => {
             const formatUrl = image.attributes.formats[format]?.url;
             if (formatUrl && !formatUrl.startsWith('http')) {
               image.attributes.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+              console.log(`Transformed article_image format (${format}):`, image.attributes.formats[format].url);
+            } else {
+              console.log(`Article_image format (${format}) already absolute:`, formatUrl);
             }
           });
         }
@@ -234,12 +252,18 @@ const getArticlesHandler: RequestHandler = async (req: Request, res: Response, n
           if (typeof article.feature_image_url === 'object' && article.feature_image_url.url) {
             if (!article.feature_image_url.url.startsWith('http')) {
               article.feature_image_url.url = `${strapiBaseUrl}${article.feature_image_url.url}`;
+              console.log('Transformed feature_image_url (direct):', article.feature_image_url.url);
+            } else {
+              console.log('Feature_image_url already absolute (direct):', article.feature_image_url.url);
             }
             if (article.feature_image_url.formats) {
               Object.keys(article.feature_image_url.formats).forEach(format => {
                 const formatUrl = article.feature_image_url.formats[format]?.url;
                 if (formatUrl && !formatUrl.startsWith('http')) {
                   article.feature_image_url.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+                  console.log(`Transformed feature_image_url format (${format}):`, article.feature_image_url.formats[format].url);
+                } else {
+                  console.log(`Feature_image_url format (${format}) already absolute:`, formatUrl);
                 }
               });
             }
@@ -247,12 +271,18 @@ const getArticlesHandler: RequestHandler = async (req: Request, res: Response, n
             const attributes = article.feature_image_url.data.attributes;
             if (attributes.url && !attributes.url.startsWith('http')) {
               attributes.url = `${strapiBaseUrl}${attributes.url}`;
+              console.log('Transformed feature_image_url (attributes):', attributes.url);
+            } else {
+              console.log('Feature_image_url already absolute (attributes):', attributes.url);
             }
             if (attributes.formats) {
               Object.keys(attributes.formats).forEach(format => {
                 const formatUrl = attributes.formats[format]?.url;
                 if (formatUrl && !formatUrl.startsWith('http')) {
                   attributes.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+                  console.log(`Transformed feature_image_url format (${format}):`, attributes.formats[format].url);
+                } else {
+                  console.log(`Feature_image_url format (${format}) already absolute:`, formatUrl);
                 }
               });
             }
@@ -264,12 +294,18 @@ const getArticlesHandler: RequestHandler = async (req: Request, res: Response, n
             const strapiBaseUrl = process.env.STRAPI_URL || 'http://localhost:1337';
             if (image.attributes && image.attributes.url && !image.attributes.url.startsWith('http')) {
               image.attributes.url = `${strapiBaseUrl}${image.attributes.url}`;
+              console.log('Transformed article_image:', image.attributes.url);
+            } else {
+              console.log('Article_image already absolute:', image.attributes?.url);
             }
             if (image.attributes && image.attributes.formats) {
               Object.keys(image.attributes.formats).forEach(format => {
                 const formatUrl = image.attributes.formats[format]?.url;
                 if (formatUrl && !formatUrl.startsWith('http')) {
                   image.attributes.formats[format].url = `${strapiBaseUrl}${formatUrl}`;
+                  console.log(`Transformed article_image format (${format}):`, image.attributes.formats[format].url);
+                } else {
+                  console.log(`Article_image format (${format}) already absolute:`, formatUrl);
                 }
               });
             }
