@@ -14,7 +14,14 @@ const nextConfig = {
         hostname: 'cms.themonetarycatalyst.com',
         port: '',
         pathname: '/uploads/**',
-      }
+      },
+      // Add Strapi Cloud media CDN
+      {
+        protocol: 'https',
+        hostname: 'kind-darling-0028761e1e.media.strapiapp.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
