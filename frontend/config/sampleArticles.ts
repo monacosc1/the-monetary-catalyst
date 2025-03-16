@@ -19,8 +19,8 @@ export const SAMPLE_ARTICLES = {
       articleType: 'investment-ideas',
     },
     production: {
-      slug: 'investment-pick-for-november-2024', // Update with a new production slug later
-      title: 'Investment Pick for November 2024', // Update with a new title later
+      slug: 'homebuilder-on-the-cheap', // Update with a new production slug later
+      title: 'Homebuilder on the Cheap', // Update with a new title later
       articleType: 'investment-ideas',
     },
   },
