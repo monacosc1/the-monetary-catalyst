@@ -14,10 +14,19 @@ const app: Application = express();
 // Trust proxy for Vercel (fixes express-rate-limit warning)
 app.set('trust proxy', true);
 
-// Basic middleware
+// Dynamic CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., curl or mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
 }));
 
 // Configure webhook rate limiter

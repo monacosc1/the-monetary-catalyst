@@ -1,10 +1,14 @@
+// /cms/config/middlewares.js
 module.exports = [
   'strapi::errors',
   {
     name: 'strapi::cors',
     config: {
       enabled: true,
-      origin: ['http://localhost:3000'], // Your frontend URL
+      origin: [
+        'http://localhost:3000', // Development
+        'https://www.themonetarycatalyst.com', // Production frontend
+      ],
       headers: '*',
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
     },
@@ -16,4 +20,4 @@ module.exports = [
   'strapi::session',
   'strapi::favicon',
   'strapi::public',
-]; 
+];
