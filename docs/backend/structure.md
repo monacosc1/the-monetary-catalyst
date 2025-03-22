@@ -129,14 +129,25 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 ### Stripe Integration
 ```typescript
 // Payment Processing
-export const stripeService = {
-  async createCheckoutSession(userId: string, priceId: string) {
-    return await stripe.checkout.sessions.create({
-      customer: userId,
-      payment_method_types: ['card'],
-      mode: 'subscription'
-    });
-  }
+export const createCheckoutSession = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const { priceId } = req.body;
+
+  const customerId = await createCustomer(userId, req.user?.email);
+  
+  const baseUrl = getBaseUrl();
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    customer: customerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/pricing`,
+    client_reference_id: userId,
+    metadata: { userId, environment: process.env.NODE_ENV || 'development' }
+  });
+
+  res.json({ url: session.url });
 };
 ```
 

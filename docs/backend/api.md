@@ -4,21 +4,21 @@
 The Monetary Catalyst API provides endpoints for authentication, content management, payment processing, and email services. All API responses follow a consistent format and use standard HTTP status codes.
 
 ## Base URL
-```
+```typescript
 Development: http://localhost:5000
 Production: https://api.themonetarycatalyst.com
 ```
 
 ## Authentication
 All protected routes require a Bearer token in the Authorization header:
-```
+```typescript
 Authorization: Bearer <jwt_token>
 ```
 
 ### Auth Endpoints
 
 #### Register User
-```http
+```typescript
 POST /api/auth/register
 Content-Type: application/json
 
@@ -43,7 +43,7 @@ Response: 200 OK
 ```
 
 #### Login
-```http
+```typescript
 POST /api/auth/login
 Content-Type: application/json
 
@@ -63,7 +63,7 @@ Response: 200 OK
 ```
 
 #### Google OAuth
-```http
+```typescript
 POST /api/auth/google-callback
 Content-Type: application/json
 
@@ -79,7 +79,7 @@ Content-Type: application/json
 ## Payment & Subscription
 
 ### Create Checkout Session
-```http
+```typescript
 POST /api/create-checkout-session
 Authorization: Bearer <token>
 Content-Type: application/json
@@ -95,7 +95,7 @@ Response: 200 OK
 ```
 
 ### Subscription Management
-```http
+```typescript
 POST /api/cancel-subscription
 Authorization: Bearer <token>
 
@@ -106,26 +106,36 @@ Response: 200 OK
 ```
 
 ### Payment Methods
-```http
+```typescript
 GET /api/get-payment-method
 Authorization: Bearer <token>
 
 Response: 200 OK
 {
-  "paymentMethod": {
-    "id": "string",
-    "brand": "string",
+  "card": {
     "last4": "string",
-    "expMonth": number,
-    "expYear": number
+    "brand": "string",
+    "exp_month": number,
+    "exp_year": number
   }
+}
+```
+
+### Create Setup Intent (for changing payment methods)
+```typescript
+POST /api/create-setup-intent
+Authorization: Bearer <token>
+
+Response: 200 OK
+{
+  "clientSecret": "string" // Client secret for Stripe Setup Intent
 }
 ```
 
 ## Content Management
 
 ### Articles
-```http
+```typescript
 GET /api/articles
 Query Parameters:
 - page (number)
@@ -152,7 +162,7 @@ Response: 200 OK
 ```
 
 ### Newsletter
-```http
+```typescript
 POST /api/newsletter/subscribe
 Content-Type: application/json
 
@@ -172,7 +182,7 @@ Response: 200 OK
 ## Contact & Support
 
 ### Contact Form
-```http
+```typescript
 POST /api/contact
 Content-Type: application/json
 
@@ -192,16 +202,19 @@ Response: 200 OK
 ## Webhooks
 
 ### Stripe Webhooks
-```http
+```typescript
 POST /api/webhook
 Content-Type: application/json
 Stripe-Signature: <signature>
 
 Response: 200 OK
+{
+  "received": true
+}
 ```
 
 ### SendGrid Webhooks
-```http
+```typescript
 POST /api/email-events
 Content-Type: application/json
 X-Twilio-Email-Event-Webhook-Signature: <signature>
@@ -228,7 +241,7 @@ Common Status Codes:
 - 500: Internal Server Error
 
 ## Rate Limiting
-```
+```typescript
 Limit: 100 requests per 15 minutes per IP
 Headers:
 - X-RateLimit-Limit
