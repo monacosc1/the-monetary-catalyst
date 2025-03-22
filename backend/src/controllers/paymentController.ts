@@ -304,6 +304,12 @@ async function processSubscriptionDeleted(subscription: Stripe.Subscription) {
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return;
 
+  // Add null check for payment intent
+  if (!invoice.payment_intent) {
+    console.error('Invoice missing payment intent:', invoice.id);
+    return;
+  }
+
   try {
     const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
     const userId = subscription.metadata.userId;
@@ -324,13 +330,30 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       return;
     }
 
-    await PaymentService.createPaymentRecord(
-      userId,
-      supabaseSubscription.id,
-      invoice.id,
-      invoice.payment_intent as string,
-      invoice.amount_paid / 100 // Pass dynamic amount
-    );
+    // Check if a payment record already exists for this payment intent
+    const { data: existingPayment, error: paymentFetchError } = await supabase
+      .from(TABLES.PAYMENTS)
+      .select('id')
+      .eq('stripe_payment_id', invoice.payment_intent as string)
+      .maybeSingle();
+
+    if (paymentFetchError) {
+      console.error('Error checking for existing payment:', paymentFetchError);
+      throw new Error('Failed to check for existing payment record');
+    }
+
+    if (!existingPayment) {
+      // Only create a new payment record if one doesn't already exist
+      await PaymentService.createPaymentRecord(
+        userId,
+        supabaseSubscription.id,
+        invoice.id,
+        invoice.payment_intent as string,
+        invoice.amount_paid / 100
+      );
+    } else {
+      console.log('Payment record already exists for payment intent:', invoice.payment_intent);
+    }
 
     await withRetry(async () => {
       const result = await supabase
