@@ -1,24 +1,33 @@
-'use client'
+// /frontend/context/AuthContext.tsx
+'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@/utils/supabase'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/utils/supabase';
+import { usePathname } from 'next/navigation'; // Add this import
 
 interface AuthContextType {
-  user: User | null
-  isLoggedIn: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => Promise<{ user: User | null; session: Session | null }>
-  logout: () => Promise<void>
-  loginAfterRegister: (email: string, password: string) => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  user: User | null;
+  isLoggedIn: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    termsAccepted: boolean
+  ) => Promise<{ user: User | null; session: Session | null }>;
+  logout: () => Promise<void>;
+  loginAfterRegister: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const pathname = usePathname(); // Get the current URL path
 
   useEffect(() => {
     console.log('Environment Variables Check:');
@@ -27,33 +36,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('NODE_ENV:', process.env.NODE_ENV);
 
     const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      setIsLoggedIn(!!session?.user)
-    }
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Fetched session:', session);
+      setUser(session?.user ?? null);
+      setIsLoggedIn(!!session?.user);
+    };
 
-    fetchSession()
+    fetchSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setIsLoggedIn(!!session?.user)
-    })
+      console.log('Auth state changed:', session);
+      setUser(session?.user ?? null);
+      setIsLoggedIn(!!session?.user);
+    });
 
     return () => {
-      authListener.subscription.unsubscribe()
-    }
-  }, [])
+      authListener.subscription.unsubscribe();
+    };
+  }, [pathname]); // Re-run when the URL path changes
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    // No need to manually set user or isLoggedIn here, as the onAuthStateChange listener will handle it
-  }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string, termsAccepted: boolean) => {
+  const register = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    termsAccepted: boolean
+  ) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     console.log('API URL being used:', apiUrl);
-    
+
     try {
       const response = await fetch(`${apiUrl}/api/auth/register`, {
         method: 'POST',
@@ -70,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         if (data.error === 'Please provide a valid email address') {
           throw new Error('This email address appears to be invalid. Please check and try again.');
@@ -78,7 +94,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || data.error || 'Registration failed');
       }
 
-      // After successful registration, sign in with Supabase
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -94,67 +109,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    console.log('Logout function called')
+    console.log('Logout function called');
     try {
-      // First, check if there's a session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
       if (sessionError) {
-        console.error('Error getting session:', sessionError)
-        throw sessionError
+        console.error('Error getting session:', sessionError);
+        throw sessionError;
       }
 
       if (!session) {
-        console.log('No active session found, clearing local state')
-        setUser(null)
-        setIsLoggedIn(false)
-        return
+        console.log('No active session found, clearing local state');
+        setUser(null);
+        setIsLoggedIn(false);
+        return;
       }
 
-      // If there's a session, proceed with sign out
-      const { error } = await supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Supabase signOut error:', error)
-        throw error
+        console.error('Supabase signOut error:', error);
+        throw error;
       }
-      console.log('Supabase signOut successful')
-      setUser(null)
-      setIsLoggedIn(false)
-      console.log('User state cleared')
+      console.log('Supabase signOut successful');
+      setUser(null);
+      setIsLoggedIn(false);
+      console.log('User state cleared');
     } catch (error) {
-      console.error('Logout error:', error)
-      // Even if there's an error, clear the local state
-      setUser(null)
-      setIsLoggedIn(false)
+      console.error('Logout error:', error);
+      setUser(null);
+      setIsLoggedIn(false);
     }
-  }
+  };
 
   const loginAfterRegister = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    setUser(data.user)
-    setIsLoggedIn(true)
-  }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    setUser(data.user);
+    setIsLoggedIn(true);
+  };
 
   const signInWithGoogle = async () => {
     try {
       console.log('Starting Google Sign-In process');
-      await supabase.auth.signOut();
-      console.log('Existing session cleared');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.auth.signOut();
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-        }
+        },
       });
 
       if (error) throw error;
       if (!data.url) throw new Error('No URL returned from signInWithOAuth');
 
       console.log('OAuth URL:', data.url);
-      
-      // Redirect the user to the OAuth provider
       window.location.href = data.url;
     } catch (error) {
       console.error('Google Sign-In error:', error);
@@ -166,13 +179,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ user, isLoggedIn, login, register, logout, loginAfterRegister, signInWithGoogle }}>
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context
-}
+  return context;
+};

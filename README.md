@@ -11,7 +11,7 @@ The Monetary Catalyst is a comprehensive financial research and analysis platfor
 - **Authentication**: Supabase Auth
 - **Payment Processing**: Stripe
 - **Email Service**: SendGrid
-- **Deployment**: Vercel (Frontend), Railway (Backend)
+- **Deployment**: Vercel (Frontend), Vercel Serverless (Backend)
 
 ## Core Features
 - User authentication with email and Google OAuth
@@ -138,7 +138,8 @@ vercel --prod
 ### Backend Deployment
 ```bash
 cd backend
-railway up
+npm run build
+vercel --prod
 ```
 
 For detailed deployment instructions, see [Production Deployment Guide](docs/deployment/production.md)

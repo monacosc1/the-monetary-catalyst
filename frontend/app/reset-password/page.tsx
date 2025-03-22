@@ -1,65 +1,64 @@
-'use client'
+// /frontend/app/reset-password/page.tsx
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/utils/supabase'
-import DotPattern from '@/components/DotPattern'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
+import DotPattern from '@/components/DotPattern';
 
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const hash = window.location.hash
+    const hash = window.location.hash;
     if (hash) {
-      // Extract access token from hash
-      const accessToken = hash.split('access_token=')[1]
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token') || '';
       if (accessToken) {
-        // Set the access token in Supabase
         supabase.auth.setSession({
           access_token: accessToken,
-          refresh_token: ''
-        })
+          refresh_token: refreshToken,
+        });
       }
     }
-  }, [])
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMessage('')
-    setError('')
-    setIsLoading(true)
+    e.preventDefault();
+    setMessage('');
+    setError('');
+    setIsLoading(true);
 
     try {
       if (password !== confirmPassword) {
-        throw new Error('Passwords do not match')
+        throw new Error('Passwords do not match');
       }
 
       const { error } = await supabase.auth.updateUser({
-        password: password
-      })
+        password: password,
+      });
 
-      if (error) throw error
+      if (error) throw error;
 
-      setMessage('Password updated successfully! Redirecting to login...')
+      setMessage('Password updated successfully! Redirecting to login...');
       setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+        router.push('/login');
+      }, 2000);
     } catch (error: Error | unknown) {
-      console.error('Reset password error:', error)
+      console.error('Reset password error:', error);
       setError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to reset password'
-      )
+        error instanceof Error ? error.message : 'Failed to reset password'
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <main className="flex-grow bg-background-light text-white py-16 relative">
@@ -67,7 +66,7 @@ export default function ResetPasswordPage() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-md mx-auto bg-white text-gray-900 rounded-lg shadow-xl p-8">
           <h2 className="text-3xl font-bold text-center mb-6">Reset Your Password</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -122,5 +121,5 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </main>
-  )
+  );
 }
