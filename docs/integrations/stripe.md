@@ -16,43 +16,37 @@ STRIPE_PRICE_ID_ANNUAL=price_...
 
 ### Stripe Client Setup
 ```typescript
-// services/stripeService.ts
+// src/controllers/paymentController.ts
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-09-30.acacia'
 });
-
-export default stripe;
 ```
 
 ## Customer Management
 
 ### Customer Creation
 ```typescript
-async function createOrGetCustomer(userId: string, email: string) {
-  // Check existing customer
-  const { data: profile } = await supabase
-    .from('user_profiles')
+// src/controllers/paymentController.ts
+async function createCustomer(userId: string, email: string) {
+  const { data: userProfile } = await supabase
+    .from(TABLES.USER_PROFILES)
     .select('stripe_customer_id')
     .eq('user_id', userId)
     .single();
 
-  if (profile?.stripe_customer_id) {
-    return profile.stripe_customer_id;
+  if (userProfile?.stripe_customer_id) {
+    return userProfile.stripe_customer_id;
   }
 
-  // Create new customer
   const customer = await stripe.customers.create({
     email,
-    metadata: {
-      userId
-    }
+    metadata: { userId }
   });
 
-  // Save customer ID
   await supabase
-    .from('user_profiles')
+    .from(TABLES.USER_PROFILES)
     .update({ stripe_customer_id: customer.id })
     .eq('user_id', userId);
 
@@ -64,122 +58,138 @@ async function createOrGetCustomer(userId: string, email: string) {
 
 ### Checkout Session
 ```typescript
-async function createCheckoutSession(
-  customerId: string,
-  priceId: string
-) {
-  return await stripe.checkout.sessions.create({
-    customer: customerId,
-    payment_method_types: ['card'],
+// src/controllers/paymentController.ts
+export const createCheckoutSession = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const { priceId } = req.body;
+
+  const customerId = await createCustomer(userId, req.user?.email);
+  
+  const baseUrl = getBaseUrl();
+  const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
-    line_items: [{
-      price: priceId,
-      quantity: 1
-    }],
-    success_url: `${process.env.FRONTEND_URL}/checkout/success`,
-    cancel_url: `${process.env.FRONTEND_URL}/checkout/cancel`
+    payment_method_types: ['card'],
+    customer: customerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/pricing`,
+    client_reference_id: userId,
+    metadata: { userId, environment: process.env.NODE_ENV || 'development' }
   });
-}
+
+  res.json({ url: session.url });
+};
 ```
 
-### Setup Intent
+### Setup Intent (for changing payment methods)
 ```typescript
-async function createSetupIntent(customerId: string) {
-  return await stripe.setupIntents.create({
-    customer: customerId,
-    payment_method_types: ['card']
+// src/controllers/paymentController.ts
+export const createSetupIntent = async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const { data: userProfile } = await supabase
+    .from(TABLES.USER_PROFILES)
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .single();
+
+  const setupIntent = await stripe.setupIntents.create({
+    customer: userProfile.stripe_customer_id,
+    payment_method_types: ['card'],
+    metadata: { userId }
   });
-}
+
+  res.json({ clientSecret: setupIntent.client_secret });
+};
 ```
 
 ## Subscription Management
 
-### Create Subscription
-```typescript
-async function createSubscription(
-  customerId: string,
-  paymentMethodId: string,
-  priceId: string
-) {
-  // Attach payment method to customer
-  await stripe.paymentMethods.attach(paymentMethodId, {
-    customer: customerId
-  });
-
-  // Set as default payment method
-  await stripe.customers.update(customerId, {
-    invoice_settings: {
-      default_payment_method: paymentMethodId
-    }
-  });
-
-  // Create subscription
-  return await stripe.subscriptions.create({
-    customer: customerId,
-    items: [{ price: priceId }],
-    payment_behavior: 'default_incomplete',
-    payment_settings: {
-      payment_method_types: ['card'],
-      save_default_payment_method: 'on_subscription'
-    },
-    expand: ['latest_invoice.payment_intent']
-  });
-}
-```
-
 ### Cancel Subscription
 ```typescript
-async function cancelSubscription(subscriptionId: string) {
-  return await stripe.subscriptions.update(subscriptionId, {
+// src/controllers/paymentController.ts
+export const cancelSubscription = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user?.id;
+  const { data: userProfile } = await supabase
+    .from(TABLES.USER_PROFILES)
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .single();
+
+  const stripeSubscriptions = await stripe.subscriptions.list({
+    customer: userProfile.stripe_customer_id,
+    status: 'active',
+    limit: 1
+  });
+
+  const stripeSubscription = stripeSubscriptions.data[0];
+
+  const { data: existingSubscription } = await supabase
+    .from(TABLES.SUBSCRIPTIONS)
+    .select('*')
+    .eq('stripe_subscription_id', stripeSubscription.id)
+    .single();
+
+  await stripe.subscriptions.update(existingSubscription.stripe_subscription_id, {
     cancel_at_period_end: true
   });
-}
+
+  await supabase
+    .from(TABLES.SUBSCRIPTIONS)
+    .update({
+      cancelled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('stripe_subscription_id', existingSubscription.stripe_subscription_id);
+
+  res.json({ success: true });
+};
 ```
 
 ## Webhook Handling
 
 ### Webhook Configuration
 ```typescript
-// middleware/stripeWebhookVerification.ts
-const handleWebhook = async (req: Request, res: Response) => {
-  const sig = req.headers['stripe-signature']!;
-  
+// src/controllers/paymentController.ts
+export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
+  let asyncProcessing: Promise<void> | undefined;
   try {
+    const sig = req.headers['stripe-signature'] as string;
     const event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET as string
     );
     
-    await processStripeEvent(event);
     res.json({ received: true });
+    
+    asyncProcessing = (async () => {
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await processCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+          break;
+        case 'customer.subscription.deleted':
+          await processSubscriptionDeleted(event.data.object as Stripe.Subscription);
+          break;
+        case 'invoice.payment_succeeded':
+          await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+          break;
+        case 'invoice.payment_failed':
+          await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+          break;
+        case 'setup_intent.succeeded':
+          await handleSetupIntentSucceeded(event.data.object as Stripe.SetupIntent);
+          break;
+        default:
+          console.log('Unhandled event type:', event.type);
+      }
+    })();
   } catch (err) {
-    res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error('Webhook signature verification failed:', err);
+    res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
-};
-```
 
-### Event Processing
-```typescript
-async function processStripeEvent(event: Stripe.Event) {
-  switch (event.type) {
-    case 'customer.subscription.created':
-      await handleSubscriptionCreated(event.data.object);
-      break;
-    case 'customer.subscription.updated':
-      await handleSubscriptionUpdated(event.data.object);
-      break;
-    case 'customer.subscription.deleted':
-      await handleSubscriptionDeleted(event.data.object);
-      break;
-    case 'invoice.payment_succeeded':
-      await handleInvoicePaymentSucceeded(event.data.object);
-      break;
-    case 'invoice.payment_failed':
-      await handleInvoicePaymentFailed(event.data.object);
-      break;
-  }
-}
+  (req as any).asyncProcessing = asyncProcessing;
+};
 ```
 
 ## Error Handling
@@ -187,24 +197,20 @@ async function processStripeEvent(event: Stripe.Event) {
 ### Payment Errors
 ```typescript
 try {
-  await processPayment();
+  await createCheckoutSession();
 } catch (error) {
-  if (error.type === 'StripeCardError') {
-    // Handle card error
-  } else if (error.type === 'StripeInvalidRequestError') {
-    // Handle invalid request
-  } else {
-    // Handle other errors
-  }
+  console.error('Error creating checkout session:', error);
+  res.status(500).json({
+    error: 'Failed to create checkout session',
+    details: process.env.NODE_ENV !== 'production' ? error.message : undefined
+  });
 }
 ```
 
 ### Webhook Errors
 ```typescript
-if (error.type === 'StripeSignatureVerificationError') {
-  // Handle invalid signature
-} else if (error.type === 'StripeWebhookError') {
-  // Handle webhook processing error
+if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+  res.status(400).send(`Webhook Error: Invalid signature`);
 }
 ```
 

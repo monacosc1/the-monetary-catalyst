@@ -47,12 +47,15 @@ interface Subscription {
   id: string;
   user_id: string;
   stripe_subscription_id: string;
-  stripe_customer_id: string;
-  plan_id: string;
-  status: 'active' | 'inactive' | 'cancelled';
-  current_period_end: string;
-  cancel_at_period_end: boolean;
-  payment_status: 'paid' | 'unpaid' | 'failed';
+  plan_type: 'monthly' | 'yearly';
+  subscription_type: string;
+  status: 'active' | 'inactive' | 'expired';
+  payment_status: 'active' | 'failed' | 'cancelled';
+  last_payment_id?: string;
+  last_payment_date?: string;
+  start_date: string;
+  end_date: string;
+  cancelled_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,14 +65,17 @@ Database Schema:
 ```sql
 CREATE TABLE subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES public.user_profiles(user_id),
   stripe_subscription_id TEXT UNIQUE NOT NULL,
-  stripe_customer_id TEXT NOT NULL,
-  plan_id TEXT NOT NULL,
+  plan_type TEXT NOT NULL,
+  subscription_type TEXT NOT NULL,
   status TEXT NOT NULL,
-  current_period_end TIMESTAMPTZ,
-  cancel_at_period_end BOOLEAN DEFAULT false,
   payment_status TEXT NOT NULL,
+  last_payment_id TEXT,
+  last_payment_date TIMESTAMPTZ,
+  start_date TIMESTAMPTZ NOT NULL,
+  end_date TIMESTAMPTZ NOT NULL,
+  cancelled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -145,17 +151,18 @@ CREATE TABLE newsletter_users (
 
 ## Payment Models
 
-### Payment Method
+### Payment
 ```typescript
-interface PaymentMethod {
+interface Payment {
   id: string;
   user_id: string;
-  stripe_payment_method_id: string;
-  card_brand: string;
-  card_last4: string;
-  card_exp_month: number;
-  card_exp_year: number;
-  is_default: boolean;
+  subscription_id: string;
+  amount: number;
+  date: string;
+  status: 'successful' | 'failed';
+  stripe_payment_id: string;
+  stripe_invoice_id: string;
+  stripe_payment_status: 'succeeded' | 'paid' | 'failed';
   created_at: string;
   updated_at: string;
 }
@@ -163,15 +170,16 @@ interface PaymentMethod {
 
 Database Schema:
 ```sql
-CREATE TABLE payment_methods (
+CREATE TABLE payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id),
-  stripe_payment_method_id TEXT UNIQUE NOT NULL,
-  card_brand TEXT NOT NULL,
-  card_last4 TEXT NOT NULL,
-  card_exp_month INTEGER NOT NULL,
-  card_exp_year INTEGER NOT NULL,
-  is_default BOOLEAN DEFAULT false,
+  user_id UUID REFERENCES public.user_profiles(user_id),
+  subscription_id UUID REFERENCES public.subscriptions(id),
+  amount NUMERIC NOT NULL,
+  date TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL,
+  stripe_payment_id TEXT UNIQUE NOT NULL,
+  stripe_invoice_id TEXT NOT NULL,
+  stripe_payment_status TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
