@@ -147,6 +147,7 @@ type MockQueryBuilder = {
   neq: jest.Mock<MockQueryBuilder>;
   not: jest.Mock<MockQueryBuilder>;
   single: jest.Mock<Promise<PostgrestSingleResponse<any>>>;
+  maybeSingle: jest.Mock<Promise<PostgrestSingleResponse<any>>>; // Added for .maybeSingle()
   then: jest.Mock;
 };
 
@@ -189,6 +190,16 @@ export const createMockQueryBuilder = (table: string): MockQueryBuilder => {
     }),
     single: jest.fn().mockImplementation(() => {
       console.log(`single called for table "${table}"`);
+      return Promise.resolve({
+        data: null,
+        error: null,
+        count: null,
+        status: 200,
+        statusText: 'OK'
+      } as PostgrestSingleResponse<any>);
+    }),
+    maybeSingle: jest.fn().mockImplementation(() => {
+      console.log(`maybeSingle called for table "${table}"`);
       return Promise.resolve({
         data: null,
         error: null,
@@ -248,7 +259,7 @@ export const mockSupabase = {
             details: null,
             hint: null,
             name: 'PostgrestError'
-          } as unknown as PostgrestError, // Cast to bypass strict type checking
+          } as unknown as PostgrestError,
           count: null,
           status: 400,
           statusText: 'Bad Request'
@@ -278,7 +289,7 @@ export const mockEmailService = {
   sendNewsletterWelcomeBackEmail: jest.fn().mockResolvedValue(true),
   validateEmail: jest.fn().mockResolvedValue(true),
   sendWelcomeEmail: jest.fn().mockResolvedValue(true),
-  sendSubscriptionConfirmation: jest.fn().mockResolvedValue(true) // Added for paymentController
+  sendSubscriptionConfirmation: jest.fn().mockResolvedValue(true)
 };
 
 // Mock external modules

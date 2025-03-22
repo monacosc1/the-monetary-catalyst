@@ -175,6 +175,11 @@ describe('Payment Controller - handleWebhook', () => {
     });
   });
 
+  afterEach(() => {
+    jest.clearAllTimers();
+    return Promise.resolve(); // Ensure all pending promises are resolved
+  });
+
   it('processes checkout.session.completed event', async () => {
     const mockEvent: Stripe.Event = {
       id: 'evt_123',
@@ -207,7 +212,6 @@ describe('Payment Controller - handleWebhook', () => {
       amount_paid: 3500
     } as Stripe.Response<Stripe.Invoice>);
 
-    // Updated mock for supabase.rpc
     (mockSupabase.rpc as jest.Mock).mockResolvedValue({
       data: { subscription_id: 'sub_789' },
       error: null
@@ -224,7 +228,7 @@ describe('Payment Controller - handleWebhook', () => {
     };
 
     await handleWebhook(req as Request, res as Response);
-    await (req as any).asyncProcessing; // Await async processing
+    await (req as any).asyncProcessing;
     expect(stripe.webhooks.constructEvent).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ received: true });
     expect(mockSupabase.rpc).toHaveBeenCalledWith('create_subscription_and_payment', {
@@ -232,7 +236,7 @@ describe('Payment Controller - handleWebhook', () => {
       p_stripe_subscription_id: 'sub_123',
       p_plan_type: 'monthly',
       p_payment_intent: 'pi_456',
-      p_amount: 35 // 3500 / 100
+      p_amount: 35
     });
   });
 
@@ -304,7 +308,7 @@ describe('Payment Controller - handleWebhook', () => {
       return qbPayments;
     });
     qbPayments.select.mockReturnValue(qbPayments);
-    qbPayments.single.mockResolvedValue({ data: { id: 'pay_123' }, error: null, count: null, status: 200, statusText: 'OK' } as PostgrestSingleResponse<any>);
+    qbPayments.maybeSingle.mockResolvedValue({ data: null, error: null, count: null, status: 200, statusText: 'OK' } as PostgrestSingleResponse<any>);
 
     (mockSupabase.from as jest.Mock).mockImplementation((table: string) => {
       if (table === TABLES.SUBSCRIPTIONS) return qbSubscriptions;
@@ -406,7 +410,6 @@ describe('Payment Controller - handleWebhook', () => {
       amount_paid: 3500
     } as Stripe.Response<Stripe.Invoice>);
 
-    // Updated mock for supabase.rpc to simulate failure
     (mockSupabase.rpc as jest.Mock).mockResolvedValue({
       data: null,
       error: new Error('RPC failed')
@@ -447,7 +450,6 @@ describe('Payment Controller - handleWebhook', () => {
       amount_paid: 3500
     } as Stripe.Response<Stripe.Invoice>);
 
-    // Updated mock for supabase.rpc
     (mockSupabase.rpc as jest.Mock).mockResolvedValue({
       data: { subscription_id: 'sub_789' },
       error: null
