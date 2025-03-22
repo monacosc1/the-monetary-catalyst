@@ -1,4 +1,4 @@
-// src/routes/authRoutes.ts
+// /backend/src/routes/authRoutes.ts
 import { Router, Request, Response } from 'express';
 import { registerUser, loginUser, getUserProfile } from '../controllers/authController';
 import authMiddleware from '../middleware/authMiddleware';
@@ -8,7 +8,6 @@ import supabase from '../config/supabase';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Create a router instance
 const router = Router();
 
 // Route for user registration
@@ -31,13 +30,10 @@ router.post('/welcome-email', async (req, res) => {
   }
 });
 
-// Add this temporary test endpoint
+// Test endpoint
 router.get('/test-welcome-email', async (req, res) => {
   try {
-    await emailService.sendWelcomeEmail(
-      'your.test@email.com',
-      'Test User'
-    );
+    await emailService.sendWelcomeEmail('your.test@email.com', 'Test User');
     res.json({ success: true, message: 'Test email sent' });
   } catch (error) {
     console.error('Test email error:', error);
@@ -45,7 +41,7 @@ router.get('/test-welcome-email', async (req, res) => {
   }
 });
 
-// Add this new route to handle Google OAuth callback
+// Google OAuth callback
 router.post('/google-callback', async (req, res) => {
   try {
     const { user_id, email, first_name, last_name, google_id, raw_user_metadata } = req.body;
@@ -55,10 +51,16 @@ router.post('/google-callback', async (req, res) => {
       email,
       first_name,
       last_name,
-      raw_user_metadata
+      google_id,
+      raw_user_metadata,
     });
 
-    // Check if user profile already exists
+    // Validate required fields
+    if (!user_id || !email) {
+      throw new Error('Missing required user data');
+    }
+
+    // Check if user profile exists
     const { data: existingProfile, error: fetchError } = await supabase
       .from('user_profiles')
       .select()
@@ -69,7 +71,7 @@ router.post('/google-callback', async (req, res) => {
       throw fetchError;
     }
 
-    const displayName = first_name || 'there'; // Fallback for welcome email if no name available
+    const displayName = first_name || 'there';
 
     if (!existingProfile) {
       // Create new user profile
@@ -78,28 +80,28 @@ router.post('/google-callback', async (req, res) => {
         .insert({
           user_id,
           email,
-          first_name: first_name || null, // Store as NULL if not available
-          last_name: last_name || null,   // Store as NULL if not available
+          first_name: first_name || null,
+          last_name: last_name || null,
           role: 'user',
           google_id,
-          terms_accepted: true
+          terms_accepted: true,
         })
         .select()
         .single();
 
       if (profileError) {
+        console.error('Profile creation failed:', profileError);
+        // Rollback auth user creation
+        await supabase.auth.admin.deleteUser(user_id);
         throw profileError;
       }
 
-      // Send welcome email with appropriate name handling
+      // Send welcome email
       try {
-        await emailService.sendWelcomeEmail(
-          email,
-          displayName // Use first name if available, otherwise "there"
-        );
+        await emailService.sendWelcomeEmail(email, displayName);
         console.log('Welcome email sent successfully to Google user');
       } catch (emailError) {
-        console.error('Failed to send welcome email to Google user:', emailError);
+        console.error('Failed to send welcome email:', emailError);
       }
 
       res.json({ success: true, profile: profileData });
@@ -109,9 +111,9 @@ router.post('/google-callback', async (req, res) => {
         .from('user_profiles')
         .update({
           email,
-          first_name: first_name || existingProfile.first_name, // Keep existing if new is null
-          last_name: last_name || existingProfile.last_name,    // Keep existing if new is null
-          google_id
+          first_name: first_name || existingProfile.first_name,
+          last_name: last_name || existingProfile.last_name,
+          google_id,
         })
         .eq('user_id', user_id);
 
@@ -119,15 +121,15 @@ router.post('/google-callback', async (req, res) => {
         throw updateError;
       }
 
-      res.json({ 
-        success: true, 
-        profile: { 
-          ...existingProfile, 
-          email, 
+      res.json({
+        success: true,
+        profile: {
+          ...existingProfile,
+          email,
           first_name: first_name || existingProfile.first_name,
           last_name: last_name || existingProfile.last_name,
-          google_id 
-        } 
+          google_id,
+        },
       });
     }
   } catch (error) {
@@ -136,14 +138,11 @@ router.post('/google-callback', async (req, res) => {
   }
 });
 
-// Define the handler separately with proper types
+// Password reset handler
 const handleResetPassword: RequestHandler = async (req, res) => {
   const { email, redirectTo } = req.body;
-  
   try {
     console.log('Starting password reset process for:', email);
-    
-    // First check if the user exists in Supabase
     const { data: user, error: userError } = await supabase
       .from('user_profiles')
       .select('email')
@@ -152,45 +151,34 @@ const handleResetPassword: RequestHandler = async (req, res) => {
 
     if (userError) {
       console.log('User not found:', email);
-      // Still return success to prevent email enumeration
-      res.json({ success: true });
+      res.json({ success: true }); // Prevent email enumeration
       return;
     }
 
-    // Generate a secure token that will be validated by Supabase
     const { data, error: tokenError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
-      email: email,
-      options: {
-        redirectTo
-      }
+      email,
+      options: { redirectTo },
     });
 
-    if (tokenError || !data) {
+    if (tokenError || !data?.properties?.action_link) {
       console.error('Error generating recovery token:', tokenError);
-      throw tokenError;
+      throw tokenError || new Error('Failed to generate recovery link');
     }
 
-    // Safely access the action_link with null check
-    if (!data.properties?.action_link) {
-      throw new Error('Failed to generate recovery link');
-    }
-
-    // Send the email with our working SendGrid setup
     await emailService.sendPasswordResetEmail(email, data.properties.action_link);
-    
     console.log('Password reset email sent successfully');
     res.json({ success: true });
   } catch (error) {
     console.error('Unexpected error during password reset:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to send reset password email',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
-// Define the SMTP test handler separately
+// SMTP test handler
 const handleTestSMTP: RequestHandler = async (req, res) => {
   try {
     await emailService.testSMTP();
@@ -201,47 +189,40 @@ const handleTestSMTP: RequestHandler = async (req, res) => {
   }
 };
 
-// Use the handlers with router.post
 router.post('/reset-password', handleResetPassword);
 router.post('/test-smtp', handleTestSMTP);
 
-// Add this new test endpoint
 router.post('/test-direct-email', async (req, res) => {
   try {
     const { email } = req.body;
-    
-    // Use the emailService to send a direct test
     await emailService.testSMTP();
-    
     res.json({ success: true, message: 'Test email sent successfully' });
   } catch (error) {
     console.error('Direct email test failed:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to send test email',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
 
-// Add this new test endpoint
 router.post('/test-sendgrid', async (req, res) => {
   try {
     console.log('Starting SendGrid test...');
     const result = await emailService.testSMTP();
     console.log('SendGrid test completed successfully');
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Test email sent successfully',
-      details: result
+      details: result,
     });
   } catch (error) {
     console.error('SendGrid test failed:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to send test email',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
 
 export default router;
-
