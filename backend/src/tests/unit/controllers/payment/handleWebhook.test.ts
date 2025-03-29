@@ -93,7 +93,11 @@ const createMockSubscription = (opts: { hasItems?: boolean } = {}): Stripe.Subsc
     object: 'subscription',
     application: null,
     application_fee_percent: null,
-    automatic_tax: { enabled: false, liability: null },
+    automatic_tax: {
+      enabled: false,
+      liability: null,
+      disabled_reason: 'requires_location_inputs', // Add the required property
+    },
     billing_cycle_anchor: Math.floor(Date.now() / 1000),
     billing_cycle_anchor_config: null,
     billing_thresholds: null,
