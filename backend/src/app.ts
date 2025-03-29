@@ -11,22 +11,10 @@ import contentRoutes from './routes/contentRoutes';
 
 const app: Application = express();
 
-// Trust proxy for Vercel (fixes express-rate-limit warning)
-app.set('trust proxy', true);
-
-// Dynamic CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+// Basic middleware
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., curl or mobile apps)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
   credentials: true,
-  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
 }));
 
 // Configure webhook rate limiter
@@ -35,6 +23,8 @@ const webhookLimiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   headers: true,
+  // @ts-ignore: TypeScript doesn't recognize trustProxy, but it's supported in express-rate-limit@7.5.0
+  trustProxy: true, // Explicitly trust the proxy (Vercel)
 });
 
 // Configure API rate limiter
@@ -43,6 +33,8 @@ const apiLimiter = rateLimit({
   max: 100,
   message: 'Too many requests from this IP, please try again later.',
   headers: true,
+  // @ts-ignore: TypeScript doesn't recognize trustProxy, but it's supported in express-rate-limit@7.5.0
+  trustProxy: true, // Explicitly trust the proxy (Vercel)
 });
 
 // Configure webhook middleware first with rate limiting
@@ -52,16 +44,20 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }), webhookLimite
 app.use('/api', apiLimiter, express.json());
 
 // Logging middleware
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   console.log('Request origin:', req.headers.origin || req.headers.referer || 'Unknown');
+  console.log('Request headers:', req.headers);
   next();
 });
 
 // Health check route (no rate limiting needed)
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'healthy' });
 });
+
+// Debug log to confirm contentRoutes is loaded
+console.log('Mounting contentRoutes:', contentRoutes);
 
 // Routes
 app.use('/api/auth', authRoutes);
