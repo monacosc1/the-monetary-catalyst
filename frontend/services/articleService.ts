@@ -155,27 +155,19 @@ const articleService = {
 
   async getArticleBySlug(slug: string): Promise<ArticlePreview | null> {
     const url = `${API_URL}/api/content/articles/${encodeURIComponent(slug)}`;
-
+  
     try {
-      // Get authentication token (if user is logged in)
       let headers: HeadersInit = {};
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
         headers = {
           'Authorization': `Bearer ${session.access_token}`
         };
-        console.log('Token being sent to backend:', {
-          token: session.access_token,
-          tokenLength: session.access_token.length,
-          tokenPrefix: session.access_token.substring(0, 10) + '...'
-        });
-      } else {
-        console.log('No auth token available from Supabase session');
       }
-
+  
       console.log('Fetching article by slug:', slug);
       console.log('Auth headers:', session ? 'Token present' : 'No auth token');
-
+  
       const response = await fetch(url, { 
         headers,
         cache: 'no-store'
@@ -190,20 +182,24 @@ const articleService = {
           url: url,
           headers: headers
         });
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 403) {
+          const errorData = JSON.parse(errorText);
+          if (errorData.article) {
+            throw new Error('Access denied: Subscription required', { cause: errorData.article });
+          }
           console.log('Authentication required or access denied for article:', slug);
-          return null;
+          throw new Error('Access denied: Subscription required');
         }
         throw new Error(`Failed to fetch article: ${response.status} ${response.statusText}`);
       }
-
+  
       const data = await response.json();
       console.log('Article data received:', data ? 'Data found' : 'No data');
       
       if (!data) {
         return null;
       }
-
+  
       return data;
     } catch (error) {
       console.error('Error fetching article:', error);
