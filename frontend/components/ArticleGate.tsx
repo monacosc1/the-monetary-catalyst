@@ -21,8 +21,8 @@ export default function ArticleGate({
 }: ArticleGateProps) {
   return (
     <div className="relative">
-      {/* Preview content */}
-      <div className="mb-8">
+      {/* Preview content with fixed height */}
+      <div className="mb-8 relative">
         <h1 className="text-4xl font-bold mb-4">{title}</h1>
         <p className="text-gray-600 mb-6">
           {publishDate} by {author}
@@ -40,16 +40,16 @@ export default function ArticleGate({
             />
           </div>
         )}
+
+        {/* Overlay with blur effect, positioned to cover only the preview content */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-b from-transparent via-white to-white pointer-events-none" 
+          style={{ top: '150px' }} // Adjusted to start earlier, ensuring CTA is visible
+        />
       </div>
 
-      {/* Overlay with blur effect */}
-      <div 
-        className="absolute inset-0 bg-gradient-to-b from-transparent via-white to-white pointer-events-none" 
-        style={{ top: '250px' }}
-      />
-
       {/* Subscribe/Login box */}
-      <div className="bg-gray-100 p-6 rounded-lg mt-4 text-center">
+      <div className="bg-gray-100 p-6 rounded-lg mt-4 text-center relative z-10">
         <p className="text-gray-700">
           {isLoggedIn ? (
             <>

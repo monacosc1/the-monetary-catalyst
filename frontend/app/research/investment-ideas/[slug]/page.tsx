@@ -10,8 +10,17 @@ import ArticleGate from '@/components/ArticleGate';
 import articleService, { ArticlePreview, StrapiImage } from '@/services/articleService';
 import { formatPublishDate } from '@/utils/dateFormatters';
 
+// Define the type for article metadata returned in a 403 response
+interface ArticleMetadata {
+  title?: string;
+  publish_date?: string;
+  author?: string;
+  feature_image_url?: string | { url: string; formats?: Record<string, unknown> };
+}
+
 export default function InvestmentIdeaPage({ params }: { params: { slug: string } }) {
   const [article, setArticle] = useState<ArticlePreview | null>(null);
+  const [articleMetadata, setArticleMetadata] = useState<ArticleMetadata>({});
   const [loading, setLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const { user } = useAuth();
@@ -42,8 +51,15 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
             setHasActiveSubscription(subscription.status === 'active');
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error fetching data:', error);
+        if (error instanceof Error && error.message === 'Access denied: Subscription required') {
+          setArticle(null);
+          setHasActiveSubscription(false);
+          setArticleMetadata((error as Error & { cause?: ArticleMetadata }).cause || {});
+        } else {
+          setArticle(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -54,16 +70,6 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
 
   if (loading) {
     return <div>Loading...</div>;
-  }
-
-  if (!article) {
-    return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl">Article not found</h2>
-        <p>The article you&apos;re looking for doesn&apos;t exist or has been removed.</p>
-        <p className="text-sm text-gray-500 mt-2">Debug info: Slug: {params.slug}</p>
-      </div>
-    );
   }
 
   // Helper function to clean image URLs with proper typing
@@ -83,23 +89,18 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
     return rawUrl;
   };
 
-  // Get feature image URL
-  const featureImageUrl = getCleanImageUrl(article.feature_image_url);
-
-  // If article is not a sample and user doesn't have an active subscription, show gated content
-  const isSample = article.isSample === true;
-  
-  if (!isSample && !hasActiveSubscription) {
+  // If article is not accessible (e.g., 403) and user doesn't have an active subscription, show gated content
+  if (!article && !hasActiveSubscription) {
     return (
       <div className="bg-background-dark text-white min-h-screen py-12 relative">
         <DotPattern />
         <div className="container mx-auto px-4 relative z-10">
           <div className="bg-white text-black p-8 rounded-lg shadow-xl">
             <ArticleGate
-              title={article.title}
-              publishDate={formatPublishDate(article.publish_date)}
-              author={article.author}
-              featureImageUrl={featureImageUrl}
+              title={articleMetadata.title ?? 'Article Title Unavailable'}
+              publishDate={articleMetadata.publish_date ? formatPublishDate(articleMetadata.publish_date) : 'Date Unavailable'}
+              author={articleMetadata.author ?? 'Author Unavailable'}
+              featureImageUrl={getCleanImageUrl(articleMetadata.feature_image_url)}
               isLoggedIn={!!user}
             />
           </div>
@@ -107,6 +108,19 @@ export default function InvestmentIdeaPage({ params }: { params: { slug: string 
       </div>
     );
   }
+
+  if (!article) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl">Article not found</h2>
+        <p>The article you are looking for does not exist or has been removed.</p>
+        <p className="text-sm text-gray-500 mt-2">Debug info: Slug: {params.slug}</p>
+      </div>
+    );
+  }
+
+  // Get feature image URL
+  const featureImageUrl = getCleanImageUrl(article.feature_image_url);
 
   // Full article content for sample articles or subscribed users
   return (
