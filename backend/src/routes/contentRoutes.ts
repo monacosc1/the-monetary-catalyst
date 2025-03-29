@@ -15,7 +15,7 @@ declare module 'express' {
 }
 
 // Helper function to transform flat query params into nested Strapi-compatible URL params
-const transformQueryParams = (query: any, prefix = '') => {
+const transformQueryParams = (query: any, prefix = ''): URLSearchParams => {
   const params = new URLSearchParams();
 
   for (const key in query) {
@@ -24,12 +24,18 @@ const transformQueryParams = (query: any, prefix = '') => {
       const newKey = prefix ? `${prefix}[${key}]` : key;
 
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        Object.assign(params, transformQueryParams(value, newKey));
+        // Recursively handle nested objects
+        const nestedParams = transformQueryParams(value, newKey);
+        nestedParams.forEach((val, k) => {
+          params.append(k, val);
+        });
       } else if (Array.isArray(value)) {
+        // Handle arrays (e.g., sort[0])
         value.forEach((item, index) => {
           params.append(`${newKey}[${index}]`, item);
         });
       } else {
+        // Handle scalar values
         params.append(newKey, value);
       }
     }
@@ -230,20 +236,7 @@ const getArticlesHandler: RequestHandler = async (req: Request, res: Response, n
     console.log('Strapi articles response data:', data);
     console.log('Raw feature_image_url for first article:', data.data[0]?.feature_image_url);
 
-    let isSubscribed = false;
-    if (userId) {
-      const { data: subscription, error } = await supabase
-        .from('subscriptions')
-        .select('status')
-        .eq('user_id', userId)
-        .single() as { data: Subscription | null; error: any };
-
-      console.log('Subscription check:', { userId, subscription, error, isSubscribed });
-      if (!error && subscription) {
-        isSubscribed = subscription.status === 'active';
-      }
-    }
-
+    // Process images for all articles
     const modifiedData = {
       ...data,
       data: data.data.map((article: any) => {
@@ -313,9 +306,6 @@ const getArticlesHandler: RequestHandler = async (req: Request, res: Response, n
         }
 
         return article;
-      }).filter((article: any) => {
-        const isSample = article.isSample === true;
-        return isSample || isSubscribed;
       }),
     };
 
