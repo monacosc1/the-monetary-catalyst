@@ -180,7 +180,15 @@ const getArticleHandler: RequestHandler = async (req: Request, res: Response, ne
     if (isSample || isSubscribed) {
       res.json(article);
     } else {
-      res.status(403).json({ error: 'Subscription required' });
+      res.status(403).json({
+        error: 'Subscription required',
+        article: {
+          title: article.title,
+          publish_date: article.publish_date,
+          author: article.author,
+          feature_image_url: article.feature_image_url
+        }
+      });
     }
   } catch (error) {
     console.error('Error fetching article:', error);
