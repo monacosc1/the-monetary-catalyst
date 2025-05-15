@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Frontend
+    participant Backend
+    participant GoogleRecaptcha
+    participant SendGrid
+    participant SupabaseDB
+
+    Client->>+Frontend: Submit contact form
+    Frontend->>+GoogleRecaptcha: execute(siteKey,{action:"contact"})
+    GoogleRecaptcha-->>-Frontend: token
+    Frontend->>+Backend: POST /api/contact { ... , recaptchaToken }
+    Backend->>+GoogleRecaptcha: /siteverify secret,token
+    GoogleRecaptcha-->>-Backend: { success:true, score:0.91 }
+    alt score >= 0.5
+        Backend->>+SendGrid: send contact email
+        SendGrid-->>-Backend: 202
+        Backend->>+SupabaseDB: INSERT contact_messages
+        SupabaseDB-->>-Backend: ok
+        Backend-->>-Frontend: 200 success
+    else
+        Backend-->>-Frontend: 400 recaptcha failed
+    end

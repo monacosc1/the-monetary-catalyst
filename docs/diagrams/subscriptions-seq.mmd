@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Frontend
+    participant Backend
+    participant Stripe
+    participant Supabase
+
+    Client->>+Frontend: Click “Subscribe Monthly”
+    Frontend->>+Backend: POST /api/create-checkout-session { priceId }
+    Note over Frontend,Backend: JWT attached in Authorization header
+    Backend->>+Stripe: customers.retrieve or .create
+    Stripe-->>-Backend: customerId
+    Backend->>+Stripe: checkout.sessions.create
+    Stripe-->>-Backend: session.url
+    Backend-->>-Frontend: 200 JSON { url }
+    Frontend-->>Client: window.location = url
+
+    Client->>+Stripe: Completes card details & pays
+    Stripe-->>Client: Redirect /success?session_id=…
+    Client->>+Frontend: Load /success
+    Frontend->>+Backend: GET /api/verify-session?session_id=…
+    Backend->>+Stripe: checkout.sessions.retrieve
+    Stripe-->>-Backend: session (paid)
+    Backend->>+Supabase: rpc.create_subscription_and_payment(…)
+    Supabase-->>-Backend: insert ok
+    Backend-->>-Frontend: 200 JSON { success:true }
+    Frontend-->>Client: Show “Payment successful” UI
+
+    Stripe-)Backend: **Webhook** checkout.session.completed
+    Stripe-)Backend: **Webhook** invoice.payment_succeeded (renewals)

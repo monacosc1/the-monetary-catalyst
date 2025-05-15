@@ -43,7 +43,7 @@ graph TD
 ### Data Layer
 - **Supabase**: Primary database and authentication provider
 - **Row Level Security**: Fine-grained access control
-- **Real-time Subscriptions**: Live data updates
+- **Real-time Subscriptions**: Planned - not enabled yet
 - **TypeScript Models**: Shared type definitions
 
 ## Key Interactions
@@ -52,25 +52,25 @@ graph TD
 1. User initiates login/register
 2. Frontend routes to Supabase Auth
 3. Supabase returns JWT token
-4. Token stored in secure HTTP-only cookie
+4. Token stored by Supabase JS client (localStorage) and sent in the `Authorization` header
 5. Subsequent requests include token
 6. Backend validates token with Supabase
 
 ### Payment Processing
 1. User initiates subscription
 2. Backend creates Stripe customer
-3. Frontend loads Stripe Elements
-4. User submits payment info
-5. Stripe processes payment
+3. Backend returns Stripe **Checkout Session** URL
+4. Frontend redirects user to hosted Stripe Checkout
+5. User completes payment on Stripe and is redirected back
 6. Webhook notifies backend
 7. Backend updates subscription status
 
 ### Content Delivery
 1. User requests content
-2. Next.js server component checks auth
-3. Backend validates subscription
+2. Frontend calls `/api/content/articles/:slug`
+3. Backend validates subscription & gates content
 4. Content served based on access level
-5. CDN caches permitted content
+5. CDN caches only **public/sample** content; premium content is `no-store`
 
 ## Security Architecture
 

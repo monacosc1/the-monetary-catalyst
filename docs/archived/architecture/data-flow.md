@@ -54,16 +54,19 @@ sequenceDiagram
     participant Backend
     participant Stripe
     participant Database
+    participant SendGrid
 
     Client->>Frontend: Select subscription
-    Frontend->>Backend: Create checkout session
-    Backend->>Stripe: Initialize checkout
-    Stripe-->>Frontend: Return checkout URL
+    Frontend->>Backend: POST /api/create-checkout-session
+    Backend->>Stripe: checkout.sessions.create
+    Stripe-->>Backend: session.url
+    Backend-->>Frontend: 200 { url }
     Frontend->>Stripe: Redirect to checkout
-    Stripe-->>Backend: Webhook (success)
-    Backend->>Database: Update subscription
-    Backend->>SendGrid: Send confirmation
-    Database-->>Frontend: Update UI state
+    Stripe-->>Backend: Webhook (checkout.session.completed)
+    Backend->>Database: INSERT subscription + payment
+    Backend->>SendGrid: Send confirmation email
+    Frontend->>Backend: GET /api/verify-session?session_id=...
+    Backend-->>Frontend: 200 { success:true }
 ```
 
 ### Subscription Management
@@ -145,13 +148,12 @@ sequenceDiagram
     participant SendGrid
 
     Client->>Frontend: Submit email
-    Frontend->>Backend: Subscribe request
-    Backend->>Database: Check existing
-    Backend->>SendGrid: Add contact
-    SendGrid-->>Backend: Confirm
-    Backend->>Database: Store subscription
-    Backend->>SendGrid: Send welcome
-    Backend-->>Frontend: Confirm subscription
+    Frontend->>Backend: POST /api/newsletter/subscribe
+    Backend->>Database: upsert newsletter_users
+    Database-->>Backend: row ok
+    Backend->>SendGrid: Add to list + send welcome
+    SendGrid-->>Backend: 202
+    Backend-->>Frontend: 200 success
 ```
 
 ## Data Synchronization
@@ -176,7 +178,7 @@ interface DatabaseSync {
 }
 ```
 
-### Real-time Updates
+### Real-time Updates. Planned, not yet enabled in Production
 ```typescript
 interface RealtimeFlow {
   subscriptionStatus: {

@@ -1,0 +1,23 @@
+<!-- docs/diagrams/newsletter-flow-seq.mmd -->
+
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Frontend
+    participant Backend
+    participant SupabaseDB
+    participant SendGrid
+
+    %% Subscribe
+    Client->>+Frontend: Submit newsletter form
+    Frontend->>+Backend: POST /api/newsletter/subscribe
+    Backend->>+SupabaseDB: INSERT OR UPDATE newsletter_users
+    SupabaseDB-->>-Backend: ok
+    Backend->>+SendGrid: mail.send (welcome template)
+    SendGrid-->>-Backend: 202 Accepted
+    Backend-->>-Frontend: 200 { success:true }
+
+    %% Webhook
+    SendGrid-)Backend: POST /api/email-events (event array)
+    Backend->>+SupabaseDB: UPDATE newsletter_users SET status=…
+    Backend-->>SendGrid: 200 OK

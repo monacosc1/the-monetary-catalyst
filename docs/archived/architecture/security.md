@@ -24,22 +24,7 @@ const validateToken = async (token: string): Promise<DecodedToken> => {
 };
 ```
 
-### Session Management
-```typescript
-// Secure session configuration
-const sessionConfig = {
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  },
-  name: '__secure_session',
-  rolling: true,
-  resave: false,
-  saveUninitialized: false
-};
-```
+<!-- Session cookies are not used; Supabase JS stores JWT client-side. -->
 
 ## API Security
 
@@ -109,25 +94,15 @@ const encryptData = (data: string): EncryptedData => {
 
 ### Stripe Integration
 ```typescript
-// Secure payment handling
-const createPaymentIntent = async ({
-  amount,
-  currency,
-  customerId
-}: PaymentIntentParams) => {
-  try {
-    return await stripe.paymentIntents.create({
-      amount,
-      currency,
-      customer: customerId,
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never'
-      }
-    });
-  } catch (error) {
-    throw new PaymentError('Failed to create payment intent');
-  }
+// Stripe subscription via Checkout Session
+const createCheckoutSession = async ({ priceId, customerId }: Params) => {
+  return stripe.checkout.sessions.create({
+    mode: 'subscription',
+    line_items: [{ price: priceId, quantity: 1 }],
+    customer: customerId,
+    success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:  `${process.env.FRONTEND_URL}/pricing`
+  });
 };
 ```
 

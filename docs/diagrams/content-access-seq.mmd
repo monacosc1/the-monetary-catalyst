@@ -1,0 +1,12 @@
+sequenceDiagram
+    autonumber
+    Client->>+Next.js Frontend: GET /articles/my-market-note
+    Frontend->>+Backend (Express): GET /api/content/articles/my-market-note (with JWT?)
+    Backend->>+Strapi CMS: GET /api/articles?filters[slug]=…&populate=*
+    Strapi-->>-Backend: Article JSON
+    alt Article.isSample OR User has active subscription
+        Backend-->>-Frontend: 200 OK — full article JSON
+    else Forbidden
+        Backend-->>-Frontend: 403 Forbidden — trimmed preview
+    end
+    Frontend-->>-Client: Render page (full or gated with CTA)

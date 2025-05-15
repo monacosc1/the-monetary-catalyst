@@ -1,0 +1,29 @@
+<!-- docs/diagrams/auth-flow-seq.mmd -->
+
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Frontend
+    participant SupabaseAuth
+    participant Backend
+    participant SupabaseDB
+
+    %% Email + Password
+    Client->>+Frontend: Submit registration form
+    Frontend->>+SupabaseAuth: signUp({ email, password })
+    SupabaseAuth-->>-Frontend: user + JWT
+    Frontend->>+Backend: POST /api/auth/register (Bearer JWT)
+    Backend->>+SupabaseAuth: verify JWT
+    SupabaseAuth-->>-Backend: OK
+    Backend->>+SupabaseDB: INSERT user_profiles
+    SupabaseDB-->>-Backend: row ok
+    Backend-->>-Frontend: 201 profile
+    Frontend-->>Client: Redirect /dashboard
+
+    %% Google OAuth
+    Client->>+SupabaseAuth: OAuth popup
+    SupabaseAuth-->>Client: Redirect callback#token
+    Client->>+Frontend: /auth/callback
+    Frontend->>+Backend: POST /api/auth/google-callback (Bearer JWT)
+    Backend->>+SupabaseDB: UPSERT user_profiles
+    Backend-->>-Frontend: 200 profile
